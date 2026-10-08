@@ -223,7 +223,7 @@ export function CreateProfileDialog({
                   image={preview.image}
                   name={previewName}
                   shape={preview.shape}
-                  size={256}
+                  size={144}
                 />
               </div>
               <AvatarPicker
@@ -321,7 +321,7 @@ export function CreateProfileDialog({
             )}
             <DialogFooter className="items-center sm:justify-between">
               {showSwitchOption ? (
-                <label className="flex items-center gap-2 text-sm text-(--ui-text-secondary)">
+                <label className="flex items-center gap-2 text-xs text-(--ui-text-secondary)">
                   <Checkbox
                     aria-label={p.switchAfterCreate}
                     checked={switchTo}

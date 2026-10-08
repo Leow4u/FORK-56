@@ -1,12 +1,12 @@
 [data-slot='dialog-content'][data-routine-create] {
-  width: min(39.5rem, calc(100vw - 2rem));
+  width: min(35rem, calc(100vw - 2rem));
   max-width: none;
-  max-height: calc(100dvh - 3rem);
-  border-radius: calc(var(--card-radius) + 0.5rem);
+  max-height: calc(100dvh - 2rem);
+  border-radius: var(--card-radius);
   background: var(--ui-bg-elevated);
   color: var(--ui-text-primary);
   box-shadow: var(--shadow-work4you);
-  font-size: 0.875rem;
+  font-size: var(--conversation-text-font-size);
 }
 
 [data-routine-create] .routine-dialog-body,
@@ -25,13 +25,11 @@
   flex-shrink: 0;
   align-items: center;
   gap: 0.75rem;
-  padding: 1.5rem 1.75rem 1rem;
+  padding: 1rem 1.25rem 0.75rem;
 }
 
 [data-routine-create] [data-slot='dialog-title'] {
   margin-inline-end: auto;
-  font-size: 1.5rem;
-  line-height: 1.5;
 }
 
 [data-routine-create] .routine-template-trigger {
@@ -49,11 +47,11 @@
 .routine-dialog-scroll {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem;
   min-width: 0;
   min-height: 0;
   margin: 0;
-  padding: 0.5rem 1.75rem 1.75rem;
+  padding: 0.25rem 1.25rem 1rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 0;
@@ -62,27 +60,7 @@
 .routine-owner {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  font-size: 1.125rem;
-}
-.routine-name-row {
-  display: flex;
-  align-items: center;
   gap: 0.75rem;
-}
-
-[data-routine-create] .routine-name-row input {
-  min-width: 0;
-  height: 2rem;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 0;
-  field-sizing: content;
-  width: auto;
-  max-width: 75%;
-  font-size: 1.125rem;
-  font-weight: 600;
 }
 
 .routine-instructions {
@@ -103,15 +81,14 @@
 .routine-instructions textarea {
   display: block;
   width: 100%;
-  min-height: 7.5rem;
+  min-height: 6rem;
   resize: vertical;
   border: 0;
   outline: none;
   padding: 0.375rem 1rem 1rem;
   background: transparent;
   font: inherit;
-  font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 .routine-instructions textarea::placeholder {
   color: var(--ui-text-tertiary);
@@ -121,7 +98,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.625rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   background: var(--ui-bg-quaternary);
 }
 
@@ -132,13 +109,13 @@
   width: auto;
   min-width: 0;
   max-width: 60%;
-  height: 2.25rem;
+  height: 2rem;
   border: 1px solid var(--ui-stroke-tertiary);
   border-radius: var(--control-radius);
   padding: 0 0.625rem;
   background: var(--ui-bg-elevated);
   box-shadow: none;
-  font-size: 0.875rem;
+  font-size: var(--conversation-caption-font-size);
 }
 [data-routine-create] .routine-model-chip {
   max-width: 45%;
@@ -156,7 +133,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 3.25rem;
+  min-height: 2.75rem;
   padding: 0.5rem 0.25rem;
 }
 .routine-schedule-group .routine-setting-row + .routine-setting-row {
@@ -173,7 +150,6 @@
   box-shadow: none;
   padding: 0.25rem;
   color: var(--ui-text-secondary);
-  font-size: 0.875rem;
 }
 [data-routine-create] .routine-number {
   width: 4rem;
@@ -181,7 +157,7 @@
 }
 .routine-delivery-trigger {
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 0.875rem;
   border: 1px solid var(--ui-stroke-tertiary);
   border-radius: var(--card-radius);
   text-align: start;
@@ -208,7 +184,7 @@
   justify-content: space-between;
   gap: 1rem;
   border-top: 1px solid var(--ui-stroke-tertiary);
-  padding: 1rem 1.75rem;
+  padding: 0.75rem 1.25rem;
 }
 .routine-summary {
   display: flex;
@@ -216,7 +192,7 @@
   gap: 0.625rem;
   min-width: 0;
   color: var(--ui-text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--conversation-caption-font-size);
 }
 .routine-summary span {
   overflow: hidden;
@@ -225,18 +201,17 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-[data-routine-create] .routine-dialog-footer button {
-  height: 2.5rem;
-  border-radius: var(--card-radius);
-  padding-inline: 1rem;
-  font-size: 0.875rem;
-}
-[data-routine-create] :is(button, input, select):focus-visible {
+[data-routine-create]
+  :is(
+    button:not([data-slot]),
+    .routine-template-trigger,
+    .routine-composer-chip,
+    .routine-value-select,
+    .routine-time,
+    .routine-number
+  ):focus-visible {
   outline: 2px solid var(--ui-text-tertiary);
   outline-offset: 2px;
-}
-[data-routine-create] .routine-name-row input:focus-visible {
-  outline-offset: 4px;
 }
 
 @media (max-width: 520px) {
@@ -259,13 +234,6 @@
   .routine-dialog-footer > div {
     margin-inline-start: auto;
   }
-  .routine-name-row {
-    flex-wrap: wrap;
-    gap: 0.25rem;
-  }
-  .routine-name-row input {
-    flex-basis: 100%;
-  }
   .routine-composer-toolbar {
     gap: 0.5rem;
   }
@@ -279,16 +247,16 @@
   border-radius: var(--card-radius);
   background: var(--ui-bg-elevated);
   box-shadow: var(--shadow-work4you);
-  font-size: 0.875rem;
+  font-size: var(--conversation-text-font-size);
 }
 .routine-delivery-menu .routine-delivery-option {
-  min-height: 3.25rem;
+  min-height: 2.75rem;
 }
 
 .routine-fields {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem;
   min-width: 0;
   margin: 0;
   padding: 0;

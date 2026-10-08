@@ -189,7 +189,9 @@ export function AvatarPicker({
               </div>
               <ColorSwatches
                 clearLabel={t.profiles.autoColor}
+                label={t.profiles.colorFor}
                 onChange={onColor}
+                presentation={presentation === 'creation' ? 'palette' : 'compact'}
                 swatches={AVATAR_COLORS}
                 swatchLabel={t.profiles.setColor}
                 value={color}

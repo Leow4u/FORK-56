@@ -280,7 +280,7 @@ export function RoutineCreateDialog({
           <div className="routine-dialog-scroll">
             <fieldset className="routine-fields" disabled={saving}>
               <div className="routine-owner">
-                <ProfileFace name={owner} size={64} />
+                <ProfileFace name={owner} size={40} />
                 <span className="truncate font-semibold">{ownerInfo ? profileLabel(ownerInfo) : owner}</span>
               </div>
 
@@ -344,7 +344,7 @@ export function RoutineCreateDialog({
                 </div>
               ) : (
                 <>
-                  <div className="routine-name-row">
+                  <Field htmlFor="routine-name" label={c.nameLabel} optional optionalLabel={c.optional}>
                     <Input
                       aria-label={c.nameLabel}
                       id="routine-name"
@@ -353,10 +353,7 @@ export function RoutineCreateDialog({
                       ref={nameRef}
                       value={name}
                     />
-                    <label className="shrink-0 text-xs text-muted-foreground" htmlFor="routine-name">
-                      {c.nameLabel} · {c.optional.toLocaleLowerCase()}
-                    </label>
-                  </div>
+                  </Field>
                   <div className="routine-instructions">
                     <label htmlFor="routine-prompt">{copy.instructions}</label>
                     <textarea
@@ -481,16 +478,17 @@ export function RoutineCreateDialog({
                   </div>
                   {delivery(deliver, setDeliver)}
                   <div className="routine-more">
-                    <button
+                    <Button
                       aria-controls="routine-advanced"
                       aria-expanded={advanced}
-                      className="flex items-center gap-2 text-sm"
                       onClick={() => setAdvanced(value => !value)}
+                      size="sm"
                       type="button"
+                      variant="text"
                     >
                       {copy.more}
                       <ChevronDown aria-hidden className={`size-3.5 ${advanced ? 'rotate-180' : ''}`} />
-                    </button>
+                    </Button>
                     {advanced && (
                       <div className="mt-4 grid gap-2" id="routine-advanced">
                         <Field htmlFor="routine-expression" label={c.customScheduleLabel}>
