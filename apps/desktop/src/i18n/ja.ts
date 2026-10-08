@@ -2457,6 +2457,11 @@ export const ja = defineLocale({
   },
 
   statusStack: {
+    tasksTitle: 'タスク',
+    tasksMinimize: '最小化',
+    tasksPinHint: 'チップをクリックすると開いたままになります',
+    tasksCompleted: (done, total) => `${total} 件中 ${done} 件完了`,
+    taskStates: { pending: '未着手', in_progress: '進行中', completed: '完了', cancelled: 'キャンセル済み' },
     agents: 'エージェント',
     background: count => `バックグラウンド ${count} 件`,
     goalActive: '目標進行中',

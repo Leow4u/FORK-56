@@ -9,7 +9,6 @@ import { composerDockCard } from '@/components/chat/composer-dock'
 import { StatusSection } from '@/components/chat/status-section'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
-import { GlyphSpinner } from '@/components/ui/glyph-spinner'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { useSessionSlice } from '@/lib/use-session-slice'
@@ -32,6 +31,7 @@ import { openSessionInNewWindow } from '@/store/windows'
 import { PreviewStatusRow } from './preview-row'
 import { ProfileSetupBanner, useProfileSetupWarning } from './profile-setup-banner'
 import { StatusItemRow } from './status-row'
+import { TasksProgress } from './tasks-progress'
 
 // Slow safety-net poll for silent exits (processes without notify_on_complete
 // emit no event when they die). Only armed while a running row is on screen.
@@ -70,9 +70,6 @@ const groupLabel = (group: StatusGroup, s: Translations['statusStack']) => {
 
   return group.type === 'subagent' ? s.subagents(group.items.length) : s.background(group.items.length)
 }
-
-const hasRunningTodo = (group: StatusGroup) =>
-  group.type === 'todo' && group.items.some(item => item.todoStatus === 'in_progress' && item.state === 'running')
 
 interface ComposerStatusStackProps {
   /** The queue, built by the composer (it owns the queue's callbacks). Rendered
@@ -163,7 +160,13 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
     sections.push({ key: 'billing', node: <BillingBanner sessionId={sessionId} /> })
   }
 
+  const todos = groups.find(group => group.type === 'todo')
+
   for (const group of groups) {
+    if (group.type === 'todo') {
+      continue
+    }
+
     sections.push({
       key: group.type,
       node: (
@@ -183,16 +186,7 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
               </Tip>
             ) : undefined
           }
-          collapsedIndicator={
-            hasRunningTodo(group) ? (
-              <GlyphSpinner
-                ariaLabel={t.statusStack.running}
-                className="text-[0.8rem] leading-none text-muted-foreground/80"
-                spinner="braille"
-              />
-            ) : undefined
-          }
-          defaultCollapsed={group.type !== 'todo' && group.type !== 'goal'}
+          defaultCollapsed={group.type !== 'goal'}
           icon={<Codicon className="text-muted-foreground/70" name={GROUP_ICON[group.type]} size="0.8rem" />}
           label={groupLabel(group, t.statusStack)}
         >
@@ -233,7 +227,7 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
   // status card, above the billing wall, above everything. They're the only
   // rows up here you press instead of read, so nothing may ever stack on top
   // of them. Rendered outside the card (below) so the pills float.
-  const visible = sections.length > 0
+  const visible = sections.length > 0 || Boolean(todos)
 
   // No height to publish: the stack is an in-flow child of the composer dock,
   // so the dock's own measurement (--composer-measured-height) already covers
@@ -252,6 +246,7 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
       data-slot="composer-status-stack"
       onPointerDownCapture={() => blurComposerInput()}
     >
+      {todos && <TasksProgress items={todos.items} key={sessionId} />}
       {/* The card paints the shared --composer-fill (rest / scrolled / focused
           all match the composer surface by construction); on scroll we only
           ghost the CONTENT — element opacity on the card would kill the blur.

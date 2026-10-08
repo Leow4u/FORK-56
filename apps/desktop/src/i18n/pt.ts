@@ -4235,6 +4235,11 @@ export const pt = defineLocale({
     }
   },
   statusStack: {
+    tasksTitle: 'Tarefas',
+    tasksMinimize: 'Minimizar',
+    tasksPinHint: 'Clique no chip para manter aberto',
+    tasksCompleted: (done, total) => `${done} de ${total} concluídas`,
+    taskStates: { pending: 'Pendente', in_progress: 'Em andamento', completed: 'Concluída', cancelled: 'Cancelada' },
     agents: 'Agentes',
     background: count => `${count} em segundo plano`,
     goalActive: 'Objetivo ativo',

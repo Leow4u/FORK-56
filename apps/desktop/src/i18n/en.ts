@@ -3897,6 +3897,11 @@ export const en: Translations = {
   },
 
   statusStack: {
+    tasksTitle: 'Tasks',
+    tasksMinimize: 'Minimize',
+    tasksPinHint: 'Click the chip to keep open',
+    tasksCompleted: (done, total) => `${done} of ${total} completed`,
+    taskStates: { pending: 'Pending', in_progress: 'In progress', completed: 'Completed', cancelled: 'Cancelled' },
     agents: 'Agents',
     background: count => `${count} Background`,
     goalActive: 'Goal active',

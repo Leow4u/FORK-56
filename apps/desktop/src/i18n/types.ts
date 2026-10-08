@@ -3266,6 +3266,11 @@ export interface Translations {
   }
 
   statusStack: {
+    tasksTitle: string
+    tasksMinimize: string
+    tasksPinHint: string
+    tasksCompleted: (done: number, total: number) => string
+    taskStates: Record<'pending' | 'in_progress' | 'completed' | 'cancelled', string>
     agents: string
     background: (count: number) => string
     goalActive: string

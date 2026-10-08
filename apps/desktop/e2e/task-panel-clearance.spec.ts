@@ -1,6 +1,6 @@
 /**
- * Regression coverage for returning to a working session as its task panel
- * expands. The transcript must reconcile to the composer's full measured
+ * Regression coverage for returning to a working session as its task chip
+ * appears. The transcript must reconcile to the composer's full measured
  * height without needing a manual scroll to repair the position.
  */
 
@@ -45,6 +45,8 @@ async function reopenWorkingSession(page: Page): Promise<void> {
 
 interface ClearanceMetrics {
   composerHeight: number
+  composerSurfaceHeight: number
+  taskChipHeight: number
   distanceFromBottom: number
   latestMessageBottom: number
   statusPanelTop: number
@@ -61,6 +63,8 @@ async function clearanceMetrics(page: Page): Promise<ClearanceMetrics> {
 
     return {
       composerHeight: Number.parseFloat(styles.getPropertyValue('--composer-measured-height')),
+      composerSurfaceHeight: surface.querySelector<HTMLElement>('[data-slot="composer-root"]')!.getBoundingClientRect().height,
+      taskChipHeight: surface.querySelector<HTMLElement>('[data-slot="tasks-progress-chip"]')!.getBoundingClientRect().height,
       distanceFromBottom: viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop,
       latestMessageBottom: latest.getBoundingClientRect().bottom,
       statusPanelTop: status.getBoundingClientRect().top,
@@ -84,7 +88,7 @@ test.describe('working-session task-panel clearance', () => {
     fixture = null
   })
 
-  test('window focus reanchors a working session above the expanded task panel', async ({}, testInfo) => {
+  test('window focus reanchors a working session above the compact task chip', async ({}, testInfo) => {
     const page = fixture!.page
 
     await send(page, PROMPT)
@@ -97,7 +101,25 @@ test.describe('working-session task-panel clearance', () => {
     fixture!.mock.releaseHeldStream()
     await page.waitForTimeout(1_000)
     await reopenWorkingSession(page)
-    await expect(activeSurface(page).getByText('Tasks 1/5')).toBeVisible({ timeout: 30_000 })
+    await expect(activeSurface(page).locator('[data-slot="tasks-progress-chip"]')).toContainText('Step 2 of 5', { timeout: 30_000 })
+
+    const chip = activeSurface(page).locator('[data-slot="tasks-progress-chip"]')
+    const composer = activeSurface(page).locator('[data-slot="composer-root"]')
+    const before = await composer.boundingBox()
+    await chip.hover()
+    const card = page.locator('[data-slot="tasks-progress-card"]')
+    await expect(card).toBeVisible()
+    await card.hover()
+    await expect(card).toBeVisible()
+    await chip.click()
+    await expect(chip).toBeHidden()
+    await composer.locator('[contenteditable="true"]').first().fill('Still typing while the plan stays open')
+    await expect(card).toBeVisible()
+    expect(await composer.boundingBox()).toEqual(before)
+    await card.getByRole('button', { name: 'Minimize' }).click()
+    await expect(chip).toBeVisible()
+    await expect(card).toBeHidden()
+    expect(await composer.boundingBox()).toEqual(before)
 
     // Reproduce the stale geometry at the foreground boundary. Active turns
     // disable Chromium's background throttling, so visibility can stay `visible`
@@ -138,7 +160,7 @@ test.describe('working-session task-panel clearance', () => {
     const metrics = await clearanceMetrics(page)
     await page.screenshot({ path: testInfo.outputPath('task-panel-after-resume.png') })
 
-    expect(metrics.composerHeight, JSON.stringify(metrics)).toBeGreaterThanOrEqual(190)
+    expect(metrics.composerHeight, JSON.stringify(metrics)).toBeGreaterThanOrEqual(metrics.composerSurfaceHeight + metrics.taskChipHeight)
     expect(metrics.distanceFromBottom, JSON.stringify(metrics)).toBeLessThan(staleState.distance / 2)
     expect(metrics.latestMessageBottom, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.statusPanelTop)
   })

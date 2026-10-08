@@ -4021,6 +4021,11 @@ export const zh: Translations = {
   },
 
   statusStack: {
+    tasksTitle: '任务',
+    tasksMinimize: '最小化',
+    tasksPinHint: '点击标签以保持展开',
+    tasksCompleted: (done, total) => `已完成 ${done}/${total} 项`,
+    taskStates: { pending: '待处理', in_progress: '进行中', completed: '已完成', cancelled: '已取消' },
     agents: '代理',
     background: count => `${count} 个后台任务`,
     goalActive: '目标进行中',

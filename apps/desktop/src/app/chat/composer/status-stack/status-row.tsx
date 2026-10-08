@@ -78,6 +78,7 @@ function leadingGlyph(item: ComposerStatusItem, s: Translations['statusStack']):
 
 interface StatusItemRowProps {
   item: ComposerStatusItem
+  wrapTitle?: boolean
   /** Clear a finished background task from the stack. */
   onDismiss?: (id: string) => void
   /** Open the subagent's own session window, livestreamed by the gateway's
@@ -92,7 +93,13 @@ interface StatusItemRowProps {
  * Memoised + keyed by id so parent re-renders never remount it (the spinner
  * keeps ticking instead of resetting).
  */
-export const StatusItemRow = memo(function StatusItemRow({ item, onDismiss, onOpen, onStop }: StatusItemRowProps) {
+export const StatusItemRow = memo(function StatusItemRow({
+  item,
+  onDismiss,
+  onOpen,
+  onStop,
+  wrapTitle = false
+}: StatusItemRowProps) {
   const { t } = useI18n()
   const s = t.statusStack
   const failed = item.state === 'failed'
@@ -114,6 +121,7 @@ export const StatusItemRow = memo(function StatusItemRow({ item, onDismiss, onOp
   return (
     <Fragment>
       <StatusRow
+        className={wrapTitle ? 'items-start' : undefined}
         leading={leadingGlyph(item, s)}
         onActivate={onActivate}
         trailing={
@@ -140,7 +148,8 @@ export const StatusItemRow = memo(function StatusItemRow({ item, onDismiss, onOp
       >
         <span
           className={cn(
-            'min-w-0 flex-1 truncate text-[0.73rem] leading-4',
+            'min-w-0 flex-1',
+            wrapTitle ? 'whitespace-normal break-words text-xs leading-5' : 'truncate text-[0.73rem] leading-4',
             failed
               ? 'text-destructive/90'
               : item.todoStatus && item.todoStatus !== 'in_progress'
