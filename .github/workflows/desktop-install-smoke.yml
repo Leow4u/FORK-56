@@ -176,28 +176,27 @@ jobs:
 
       - name: Job summary (Windows)
         if: always()
-        shell: pwsh
+        shell: bash
+        env:
+          SMOKE_TAG: ${{ needs.resolve.outputs.tag }}
+          SMOKE_MODE: ${{ needs.resolve.outputs.mode }}
         run: |
-          if (Test-Path install-smoke-windows.json) {
-            $j = Get-Content install-smoke-windows.json -Raw | ConvertFrom-Json
-            @(
-              "## Desktop install smoke (Windows)",
-              "",
-              "| Field | Value |",
-              "| --- | --- |",
-              "| Success | $($j.success) |",
-              "| Tag / mode | ${{ needs.resolve.outputs.tag }} / ${{ needs.resolve.outputs.mode }} |",
-              "| Install ms | $($j.timingsMs.install) |",
-              "| Import probe ms | $($j.timingsMs.importProbe) |",
-              "| Total ms | $($j.timingsMs.total) |",
-              "| WORK4YOU_HOME bytes | $($j.deployedHomeBytes) |",
-              "| Install dir | $($j.installDir) |",
-              ""
-            ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
-          }
-          if (Test-Path install-smoke-windows.log) {
-            "`n<details><summary>Install log</summary>`n`n``````n$(Get-Content install-smoke-windows.log -Raw)``````n</details>" | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
-          }
+          set -euo pipefail
+          if [ -f install-smoke-windows.json ]; then
+            python3 scripts/ci/summarize-install-smoke.py install-smoke-windows.json \
+              --markdown --tag "$SMOKE_TAG" --mode "$SMOKE_MODE" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f install-smoke-windows.log ]; then
+            {
+              echo ""
+              echo "<details><summary>Install log</summary>"
+              echo ""
+              echo '```'
+              cat install-smoke-windows.log
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
@@ -274,28 +273,14 @@ jobs:
 
       - name: Job summary (macOS)
         if: always()
+        env:
+          SMOKE_TAG: ${{ needs.resolve.outputs.tag }}
+          SMOKE_MODE: ${{ needs.resolve.outputs.mode }}
         run: |
+          set -euo pipefail
           if [ -f install-smoke-macos.json ]; then
-            {
-              echo "## Desktop install smoke (macOS)"
-              echo ""
-              python3 - <<'PY'
-import json
-from pathlib import Path
-j = json.loads(Path("install-smoke-macos.json").read_text())
-t = j.get("timingsMs") or {}
-print("| Field | Value |")
-print("| --- | --- |")
-print(f"| Success | {j.get('success')} |")
-print(f"| Tag / mode | ${{ needs.resolve.outputs.tag }} / ${{ needs.resolve.outputs.mode }} |")
-print(f"| Mount ms | {t.get('mountDmg')} |")
-print(f"| Copy app ms | {t.get('copyApp')} |")
-print(f"| Deploy ms | {t.get('deployRuntime')} |")
-print(f"| Import probe ms | {t.get('importProbe')} |")
-print(f"| Total ms | {t.get('total')} |")
-print(f"| WORK4YOU_HOME bytes | {j.get('deployedHomeBytes')} |")
-PY
-            } >> "$GITHUB_STEP_SUMMARY"
+            python3 scripts/ci/summarize-install-smoke.py install-smoke-macos.json \
+              --markdown --tag "$SMOKE_TAG" --mode "$SMOKE_MODE" >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ -f install-smoke-macos.log ]; then
             {
