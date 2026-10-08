@@ -2693,6 +2693,13 @@ export const ar = defineLocale({
   },
   preview: {
     newTab: {
+      suggested: 'اقتراحات',
+      recent: 'الأخيرة',
+      noSuggestions: 'ستظهر هنا المواقع المفتوحة في هذه المحادثة.',
+      noRecents: 'ستظهر هنا الملفات والصفحات المفتوحة في هذه المحادثة.',
+      page: 'صفحة',
+      image: 'صورة',
+      file: 'ملف',
       tools: 'الأدوات',
       review: 'التغييرات',
       needsProject: 'تتطلب الملفات والتغييرات مشروعًا مفتوحًا.'

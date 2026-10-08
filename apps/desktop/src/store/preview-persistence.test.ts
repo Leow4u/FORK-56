@@ -16,6 +16,22 @@ describe('restored tabs', () => {
   const kept = { profile: 'default', session: 'kept' }
   const browserRow = { id: 'url:browser', owner: kept, target: { kind: 'url', label: page, source: page, url: page } }
 
+  it('restores access history after closing the last tab and reloading the renderer', async () => {
+    vi.resetModules()
+    let store = await import('./preview')
+    const target = { kind: 'file' as const, label: 'notes.md', path: file, source: file, url: `file://${file}` }
+    store.openPreview(target, 'manual', kept)
+    store.closeRightRailTab(store.previewTabsOf(kept).tabs[0].id, kept)
+
+    vi.resetModules()
+    store = await import('./preview')
+    const session = await import('./session')
+    session.$selectedStoredSessionId.set(kept.session)
+
+    expect(store.previewTabsOf(kept).tabs).toEqual([])
+    expect(store.$currentRecentPreviews.get().map(entry => entry.target)).toContainEqual(target)
+  })
+
   // The restore runs while the module loads. A Browser tab among the rows must
   // come back, and must not take the tabs beside it down with it.
   it('restores the Browser tab and the tabs beside it', async () => {

@@ -4469,6 +4469,13 @@ export const en: Translations = {
 
   preview: {
     newTab: {
+      suggested: 'Suggested',
+      recent: 'Recents',
+      noSuggestions: 'Sites opened in this conversation will appear here.',
+      noRecents: 'Files and pages opened in this conversation will appear here.',
+      page: 'Page',
+      image: 'Image',
+      file: 'File',
       tools: 'Tools',
       review: 'Changes',
       needsProject: 'Files and Changes need an open project.'

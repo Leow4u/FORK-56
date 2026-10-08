@@ -9,6 +9,13 @@ import { normalize } from '@/lib/text'
 import type { SessionInfo } from '@/types/work4you'
 
 import { $rightRailActiveTabId, type RightRailTabId, selectRightRailTab } from './layout'
+import {
+  $recentPreviews,
+  forgetRecentPreviews,
+  moveRecentPreviewOwners,
+  recordPreviewVisit,
+  updateRecentPage
+} from './preview-recents'
 import { $activeGatewayProfile, normalizeProfileKey } from './profile-identity'
 import {
   $activeSessionId,
@@ -463,6 +470,12 @@ export const $previewTabs = computed(
   (tabs, owner, sessions) => (followedTabs = stableArray(followedTabs, tabsOf(owner, tabs, sessions)))
 )
 
+/** The same owner boundary as tabs; a closed tab can remain in this list. */
+export const $currentRecentPreviews = computed(
+  [$recentPreviews, $previewOwner, $sessions],
+  (entries, owner, sessions) => entries.filter(entry => sameOwner(owner, entry.owner, sessions))
+)
+
 let allTabIds: readonly string[] = []
 
 /** Every open tab id across conversations. A tab of a conversation that is off
@@ -615,6 +628,10 @@ function adoptDraftPreviewTabs(storedSessionId: string) {
   const draft: PreviewOwner = { profile: owner.profile, session: PREVIEW_DRAFT }
   const all = $allPreviewTabs.get()
 
+  if (owner.session !== PREVIEW_DRAFT) {
+    moveRecentPreviewOwners(current => (sameOwner(draft, current, []) ? owner : current))
+  }
+
   if (owner.session === PREVIEW_DRAFT || !all.some(tab => sameOwner(draft, tab.owner, []))) {
     return
   }
@@ -668,6 +685,8 @@ function rootPreviewOwners(sessions: readonly OwnerRow[]) {
 
     return row ? sessionPinId(row) : session
   }
+
+  moveRecentPreviewOwners(owner => ({ ...owner, session: rootOf(owner) }))
 
   const tabs = $allPreviewTabs.get()
 
@@ -807,6 +826,7 @@ function showInTab(id: RightRailTabId, target: PreviewTarget, owner: PreviewOwne
   const previous = index === -1 ? null : current[index]
   const tab: PreviewTab = { id, owner: previous?.owner ?? owner, target }
 
+  recordPreviewVisit(target, tab.owner)
   $allPreviewTabs.set(index === -1 ? [...current, tab] : current.map((item, i) => (i === index ? tab : item)))
 
   // A new page for the same tab: where the old page had navigated to, what it
@@ -954,6 +974,7 @@ export function forgetPreviewSessions(
 
   const key = normalizeProfileKey(profile)
   const gone = (owner: PreviewOwner) => owner.profile === key && ids.has(owner.session)
+  forgetRecentPreviews(gone)
   const all = $allPreviewTabs.get()
   const kept = all.filter(tab => !gone(tab.owner))
 
@@ -1033,6 +1054,10 @@ export function rememberPreviewUrl(tabId: string, url: string, owner: PreviewOwn
     return
   }
 
+  if (tab.target.kind === 'url') {
+    recordPreviewVisit({ kind: 'url', label: url, source: url, url }, tab.owner)
+  }
+
   if (url === tab.target.url) {
     if (previewResumeUrl(tab.id, owner)) {
       writeOwnerState(owner, state => withoutEntry(state, 'urls', tab.id))
@@ -1052,7 +1077,18 @@ export function rememberPreviewUrl(tabId: string, url: string, owner: PreviewOwn
 function rememberPageEntry(field: 'icons' | 'titles', tabId: string, text: string, owner: PreviewOwner) {
   const tab = tabsOf(owner).find(item => item.id === tabId)
 
-  if (!tab || tab.target.kind !== 'url' || (readOwnerState(owner)?.[field]?.[tab.id] ?? '') === text) {
+  if (!tab || tab.target.kind !== 'url') {
+    return
+  }
+
+  updateRecentPage(
+    tab.owner,
+    previewResumeUrl(tabId, owner) ?? tab.target.url,
+    field === 'icons' ? 'icon' : 'title',
+    text
+  )
+
+  if ((readOwnerState(owner)?.[field]?.[tab.id] ?? '') === text) {
     return
   }
 

@@ -19,8 +19,6 @@
  */
 
 import { useStore } from '@nanostores/react'
-import { previewFaviconSrc } from '@work4you/shared'
-import { useState } from 'react'
 
 import {
   allPaneIds,
@@ -38,6 +36,7 @@ import {
   revealTreePane
 } from '@/components/pane-shell/tree/store'
 import { FileTypeIcon } from '@/components/ui/file-type-icon'
+import { PageIcon } from '@/components/ui/page-icon'
 import { ToolIcon } from '@/components/ui/tool-icon'
 import { translateNow, useI18n } from '@/i18n'
 import { isBlankPageUrl } from '@/lib/local-preview'
@@ -136,25 +135,8 @@ export function PreviewTabTitle({ tabId }: { tabId: string }) {
  *  doesn't load. Live from the store, like the label. */
 function WebTabIcon({ tabId }: { tabId: string }) {
   const page = useStore($previewPages)[tabId as RightRailTabId]
-  const [failed, setFailed] = useState<string>()
-  const icon = page?.icon && page.icon !== failed && !isBlankPageUrl(page.url) ? page.icon : undefined
-  const src = icon ? previewFaviconSrc(icon) : null
 
-  if (!src) {
-    return <ToolIcon className="opacity-70" name="globe" size="0.6875rem" />
-  }
-
-  return (
-    <img
-      alt=""
-      className="size-[0.6875rem] shrink-0 object-contain"
-      decoding="async"
-      draggable={false}
-      onError={() => setFailed(icon)}
-      referrerPolicy="no-referrer"
-      src={src}
-    />
-  )
+  return <PageIcon icon={page && !isBlankPageUrl(page.url) ? page.icon : undefined} size="0.6875rem" />
 }
 
 /** The tab's lead glyph — the same file/tool icon family the file tree and code

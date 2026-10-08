@@ -4816,6 +4816,13 @@ export const pt = defineLocale({
 
   preview: {
     newTab: {
+      suggested: 'Sugestões',
+      recent: 'Recentes',
+      noSuggestions: 'Os sites abertos nesta conversa aparecerão aqui.',
+      noRecents: 'Os arquivos e páginas abertos nesta conversa aparecerão aqui.',
+      page: 'Página',
+      image: 'Imagem',
+      file: 'Arquivo',
       tools: 'Ferramentas',
       review: 'Alterações',
       needsProject: 'Arquivos e Alterações precisam de um projeto aberto.'

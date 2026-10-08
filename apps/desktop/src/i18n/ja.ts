@@ -2988,6 +2988,13 @@ export const ja = defineLocale({
 
   preview: {
     newTab: {
+      suggested: 'おすすめ',
+      recent: '最近の項目',
+      noSuggestions: 'この会話で開いたサイトがここに表示されます。',
+      noRecents: 'この会話で開いたファイルとページがここに表示されます。',
+      page: 'ページ',
+      image: '画像',
+      file: 'ファイル',
       tools: 'ツール',
       review: '変更',
       needsProject: 'ファイルと変更を表示するには、プロジェクトを開いてください。'
