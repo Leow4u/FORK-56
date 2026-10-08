@@ -186,7 +186,7 @@ describe('settled turn', () => {
     expect(await screen.findByText(SUMMARY)).toBeTruthy()
     expect(screen.getByText('18m')).toBeTruthy()
     expect(container.textContent).toContain('Here is the five-slide deck.')
-    expect(container.textContent).toContain('Edited 1 file')
+    expect(container.textContent).toContain('Files edited in this response (1)')
     expect(container.querySelector('[data-slot="aui_thinking-disclosure"]')).toBeNull()
     expect(container.querySelector('[data-slot="aui_turn-duration"]')).toBeNull()
   })
@@ -297,7 +297,7 @@ describe('settled turn', () => {
     expect(await screen.findByText('Forty-two.')).toBeTruthy()
     expect(await screen.findByText(SUMMARY)).toBeTruthy()
     expect(container.querySelector('[data-slot="aui_changed-files"]')).toBeNull()
-    expect(container.textContent).not.toContain('Edited 1 file')
+    expect(container.textContent).not.toContain('Files edited in this response (1)')
   })
 
   it('draws the live block, not a staircase, while the turn is running', async () => {
