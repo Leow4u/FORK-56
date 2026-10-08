@@ -50,7 +50,12 @@ vi.mock('@/lib/oneshot', () => ({ requestOneShot: (args: unknown) => requestOneS
 // doesn't try to hit the (absent) probe and log. repoStatusForCwd is read when a
 // new PR binds its session to the branch it came from — no probe here, so no
 // branch either.
-vi.mock('./coding-status', () => ({ refreshRepoStatus: vi.fn(), repoStatusForCwd: () => ({ get: () => null }) }))
+const repoStatusByCwd: Record<string, unknown> = {}
+vi.mock('./coding-status', () => ({
+  refreshRepoStatus: vi.fn(async () => undefined),
+  repoStatusForCwd: () => ({ get: () => null }),
+  $repoStatusByCwd: { get: () => repoStatusByCwd }
+}))
 
 function file(path: string, over: Partial<Work4YouReviewFile> = {}): Work4YouReviewFile {
   return { path, status: 'modified', staged: false, added: 1, removed: 0, ...over } as Work4YouReviewFile
@@ -86,6 +91,10 @@ function stubReview(over: ReviewStub = {}) {
 beforeEach(() => {
   requestOneShot.mockClear()
   requestOneShot.mockResolvedValue('generated message')
+  for (const key of Object.keys(repoStatusByCwd)) {
+    delete repoStatusByCwd[key]
+  }
+  repoStatusByCwd['/repo'] = { branch: 'main', files: [] }
   // Reset stores touched across tests.
   $reviewOpen.set(false)
   $reviewFiles.set([])
@@ -163,7 +172,7 @@ describe('refreshReview', () => {
     expect($reviewDiff.get()).toBeNull()
   })
 
-  it('clears the list but keeps isRepo true when the bridge throws', async () => {
+  it('clears the list and reflects the repo probe when the bridge throws', async () => {
     stubReview({
       list: vi.fn(async () => {
         throw new Error('git failed')
@@ -171,12 +180,24 @@ describe('refreshReview', () => {
     })
     $reviewOpen.set(true)
     $reviewFiles.set([file('stale.ts')])
+    repoStatusByCwd['/repo'] = { branch: 'main', files: [] }
 
     await refreshReview()
 
     expect($reviewFiles.get()).toEqual([])
     expect($reviewIsRepo.get()).toBe(true)
     expect($reviewLoading.get()).toBe(false)
+  })
+
+  it('flags not-a-repo when the cwd is not inside git', async () => {
+    stubReview({ list: vi.fn(async () => ({ files: [] })) })
+    repoStatusByCwd['/repo'] = null
+    $reviewOpen.set(true)
+
+    await refreshReview()
+
+    expect($reviewIsRepo.get()).toBe(false)
+    expect($reviewFiles.get()).toEqual([])
   })
 })
 

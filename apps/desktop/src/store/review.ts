@@ -7,7 +7,7 @@ import { isExcludedPath } from '@/lib/excluded-paths'
 import { requestOneShot } from '@/lib/oneshot'
 import { Codecs, persistentAtom } from '@/lib/persisted'
 
-import { refreshRepoStatus, repoStatusForCwd } from './coding-status'
+import { $repoStatusByCwd, refreshRepoStatus, repoStatusForCwd } from './coding-status'
 import { stampSessionPrBranch } from './pull-requests'
 import { $busy, $currentCwd, $selectedStoredSessionId, $sessions } from './session'
 import { $workspaceChangeTick } from './workspace-events'
@@ -135,7 +135,6 @@ export async function refreshReview(): Promise<void> {
 
   const { cwd, review } = ctx
 
-  $reviewIsRepo.set(true)
   $reviewLoading.set(true)
 
   try {
@@ -168,7 +167,9 @@ export async function refreshReview(): Promise<void> {
       $reviewFiles.set([])
     }
   } finally {
-    if (seq === reviewRefreshSeq) {
+    if (seq === reviewRefreshSeq && repoCwd() === cwd) {
+      await refreshRepoStatus(cwd)
+      $reviewIsRepo.set(($repoStatusByCwd.get()[cwd] ?? null) !== null)
       $reviewLoading.set(false)
     }
   }
