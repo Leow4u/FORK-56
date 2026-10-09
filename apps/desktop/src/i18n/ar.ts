@@ -821,7 +821,28 @@ export const ar = defineLocale({
       deepLinkErrorConfig: 'إعدادات الرابط ليست JSON صالحا مرمّزا بـ base64.',
       deepLinkErrorShape: 'يجب أن تكون الإعدادات كائن JSON يحتوي على حقل `url` أو `command` نصي.',
       deepLinkErrorUrl: 'يسمح فقط بعناوين http:// و https:// للخادم.',
-      deepLinkErrorTooLarge: 'حجم الإعدادات يتجاوز الحد الأقصى 32KB.'
+      deepLinkErrorTooLarge: 'حجم الإعدادات يتجاوز الحد الأقصى 32KB.',
+      typeLocalCli: 'CLI محلي',
+      ghCli: {
+        name: 'GitHub CLI',
+        description: 'سجّل الدخول إلى gh على هذا الجهاز ليتمكن الوكيل من الاستنساخ والدفع وفتح طلبات السحب وقراءة CI.',
+        connectedAs: login => `مسجّل الدخول باسم @${login}. يستخدم git push وطلبات السحب هذا الحساب.`,
+        installHint: 'GitHub CLI (gh) غير مثبّت حيث يعمل الوكيل. ثبّته ثم تحقق مرة أخرى.',
+        installLink: 'الحصول على GitHub CLI',
+        recheck: 'تحقق مرة أخرى',
+        missing: 'GitHub CLI (gh) غير مثبّت حيث يعمل الوكيل.',
+        dialogTitle: 'تسجيل الدخول إلى GitHub',
+        dialogBody: 'انسخ هذا الرمز ثم ألصقه في صفحة GitHub التي فُتحت للتو.',
+        reopen: 'إعادة فتح GitHub',
+        waiting: 'في انتظار موافقتك على GitHub…',
+        denied: 'رُفضت الموافقة على GitHub.',
+        expired: 'انتهت صلاحية الرمز. ابدأ من جديد.',
+        failed: 'فشل تسجيل الدخول إلى GitHub.',
+        connectedTitle: 'تم ربط GitHub CLI',
+        connectedBody: login => `gh مسجّل الدخول باسم @${login}.`,
+        setupGitWarning: 'تم تسجيل الدخول، لكن تعذّر ربط git بـ gh. شغّل `gh auth setup-git` في الطرفية.',
+        logoutFailed: 'تعذّر تسجيل الخروج من gh.'
+      }
     },
     model: {
       loading: 'جار تحميل إعدادات النموذج...',

@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   DIRECTORY_SECTION_IDS,
   DIRECTORY_SECTION_LABELS,
@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
 import { translateNow, type Translations, useI18n } from '@/i18n'
 import { connectWork4YouApp } from '@/lib/composio-connect'
+import { openExternalLink } from '@/lib/external-link'
 import { compactNumber } from '@/lib/format'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
 import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
@@ -51,10 +52,12 @@ import {
   disconnectConnector,
   getActionStatus,
   getConnectorsDirectory,
+  getGhAuthStatus,
   getLogs,
   getMcpCatalog,
   getMcpOAuthFlow,
   getUsageAnalytics,
+  ghLogout,
   installMcpCatalogEntry,
   type McpCatalogEntry,
   type McpTestResult,
@@ -73,6 +76,7 @@ import { prettyName } from '../settings/helpers'
 import { useDeepLinkHighlight } from '../settings/use-deep-link-highlight'
 
 import { CapabilitiesToolbar } from './capabilities-toolbar'
+import { GhCliLoginDialog } from './gh-cli-login-dialog'
 import { McpAvatar, type ServerStatus } from './mcp-avatar'
 import {
   MCP_CATALOG_COLUMN_CLASS,
@@ -117,6 +121,15 @@ function parseServersDoc(raw: string): McpServers {
 // The runtime gate is `enabled: false` — the same flag `work4you mcp` and the
 // agent's MCP loader read.
 const serverEnabled = (server: Record<string, unknown>) => server.enabled !== false
+
+// The "GitHub CLI" directory row: the backend host's local `gh` login, which
+// is what the agent's terminal, git and the bundled github-* skills use. Not
+// an MCP server and not the Work4You Apps (Composio) GitHub row — that one is
+// a hosted account with its own tool surface. Injected client-side so the web
+// dashboard's directory never sees it.
+export const GH_CLI_DIRECTORY_ID = 'github-cli'
+const GH_CLI_INSTALL_URL = 'https://cli.github.com'
+const GH_AUTH_KEY = ['gh-auth'] as const
 
 // Shared cache for the Work4You-approved catalog — feeds both description enrichment
 // and the Catalog install view; invalidated after an install.
@@ -453,6 +466,8 @@ export function McpTab({
   const directoryFilter: McpDirectoryViewId = view === 'mine' ? 'connected' : 'discover'
   const sectionFilter = useStore($mcpCategory)
   const [importOpen, setImportOpen] = useState(false)
+  const [ghLoginOpen, setGhLoginOpen] = useState(false)
+  const [ghBusy, setGhBusy] = useState(false)
   const [connectingSlug, setConnectingSlug] = useState<null | string>(null)
   const [adminOpen, setAdminOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<null | string>(null)
@@ -515,6 +530,26 @@ export function McpTab({
     staleTime: 30_000
   })
 
+  // The backend host's `gh` login state. Scoped like the directory: a remote
+  // Capabilities pin asks THAT host, which is where the agent's terminal runs.
+  const queryClient = useQueryClient()
+  const ghAuthKey = useMemo(() => [...GH_AUTH_KEY, scopeProfileKey], [scopeProfileKey])
+
+  const ghAuthQuery = useQuery({
+    queryKey: ghAuthKey,
+    queryFn: () => getGhAuthStatus(profile ?? undefined),
+    staleTime: 60_000
+  })
+
+  // Bypass the backend's 5-minute status cache (after login/logout, or when
+  // the user installed gh and asks to check again).
+  const refreshGhAuth = () =>
+    queryClient.fetchQuery({
+      queryKey: ghAuthKey,
+      queryFn: () => getGhAuthStatus(profile ?? undefined, true),
+      staleTime: 0
+    })
+
   const catalog = useMemo(() => catalogQuery.data?.entries ?? [], [catalogQuery.data])
 
   const nativeCatalogByName = useMemo(() => {
@@ -532,6 +567,25 @@ export function McpTab({
       ...app,
       source: app.source === 'composio' ? 'composio' : 'native'
     }))
+
+    // GitHub CLI rides the same filters (search, category, Popular, Connected)
+    // as every other row. Added once the probe answered so the card never
+    // flashes "not installed" while the backend is still looking.
+    const gh = ghAuthQuery.data
+
+    if (gh) {
+      rows.unshift({
+        id: GH_CLI_DIRECTORY_ID,
+        name: m.ghCli.name,
+        description: m.ghCli.description,
+        section: 'developer',
+        popular: true,
+        source: 'gh_cli',
+        connected: gh.authenticated,
+        installed: gh.available,
+        needs_install: !gh.available
+      })
+    }
 
     const known = new Set(rows.map(app => app.id))
 
@@ -557,7 +611,7 @@ export function McpTab({
       query,
       section: sectionFilter === 'all' ? null : sectionFilter
     })
-  }, [catalog, directoryFilter, directoryQuery.data, names, query, sectionFilter, servers])
+  }, [catalog, directoryFilter, directoryQuery.data, ghAuthQuery.data, m.ghCli, names, query, sectionFilter, servers])
 
   // Discover only (Connected is a flat table). Popular is pinned first and
   // owns its apps — nothing is listed twice.
@@ -646,6 +700,7 @@ export function McpTab({
     $mcpCategory.set('all')
     setAdminOpen(false)
     setAuthing(null)
+    setGhLoginOpen(false)
     setDirty(false)
     setDraft('')
     setDocVersion(version => version + 1)
@@ -1208,12 +1263,67 @@ export function McpTab({
     }
   }
 
+  // GitHub CLI: the dialog owns the device-code flow; on approval the backend
+  // already handed the token to `gh` and ran `gh auth setup-git`.
+  const onGhConnected = (result: { login: null | string; setup_git: boolean | null }) => {
+    void refreshGhAuth().catch(() => undefined)
+    notify({
+      kind: 'success',
+      title: m.ghCli.connectedTitle,
+      message: result.login ? m.ghCli.connectedBody(result.login) : ''
+    })
+
+    if (result.setup_git === false) {
+      notify({ kind: 'warning', title: m.ghCli.name, message: m.ghCli.setupGitWarning })
+    }
+  }
+
+  const disconnectGhCli = async () => {
+    setGhBusy(true)
+
+    try {
+      await ghLogout(profile ?? undefined)
+      await refreshGhAuth()
+    } catch (err) {
+      notifyError(err, m.ghCli.logoutFailed)
+    } finally {
+      setGhBusy(false)
+    }
+  }
+
+  const recheckGhCli = async () => {
+    setGhBusy(true)
+
+    try {
+      await refreshGhAuth()
+    } catch (err) {
+      notifyError(err, m.ghCli.name)
+    } finally {
+      setGhBusy(false)
+    }
+  }
+
   // Connected view rows. mcp.json servers (native + custom) open their config
   // pane and keep the switch + icon actions; a hosted Work4You App only
   // disconnects. Type is read the way the loader reads it: url → HTTP,
   // command → stdio.
   const connectedRow = (app: DirectoryApp): McpConnectedRow => {
     const server = servers[app.id]
+
+    if (app.source === 'gh_cli') {
+      return {
+        id: app.id,
+        name: app.name,
+        oauth: false,
+        status: app.connected ? 'ok' : 'off',
+        trailing: (
+          <Button disabled={ghBusy} onClick={() => void disconnectGhCli()} size="xs" variant="text">
+            {ghBusy ? m.catalogInstalling : m.disconnect}
+          </Button>
+        ),
+        type: 'cli'
+      }
+    }
 
     if (app.source === 'composio') {
       const busy = connectingSlug === app.id
@@ -1309,6 +1419,12 @@ export function McpTab({
         onOpenChange={setImportOpen}
         open={importOpen}
       />
+      <GhCliLoginDialog
+        onConnected={onGhConnected}
+        onOpenChange={setGhLoginOpen}
+        open={ghLoginOpen}
+        profile={profile ?? undefined}
+      />
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {selected && activeEntry && !isHiddenMcpRuntimeServer(selected) ? (
@@ -1359,6 +1475,63 @@ export function McpTab({
                       <div className={MCP_CATALOG_GRID_CLASS}>
                         {group.apps.map(app => {
                           const server = servers[app.id]
+
+                          if (app.source === 'gh_cli') {
+                            const gh = ghAuthQuery.data
+                            const installed = gh?.available !== false
+
+                            return (
+                              <ConnectorCard
+                                description={
+                                  !installed
+                                    ? m.ghCli.installHint
+                                    : gh?.authenticated && gh.login
+                                      ? m.ghCli.connectedAs(gh.login)
+                                      : app.description
+                                }
+                                displayName={app.name}
+                                key={`${group.id}-${app.id}`}
+                                name={app.id}
+                                status={app.connected ? 'ok' : installed ? 'off' : 'unknown'}
+                                trailing={
+                                  app.connected ? (
+                                    <span className="px-1.5 text-xs text-(--ui-text-tertiary)">
+                                      {m.statusConnected}
+                                    </span>
+                                  ) : installed ? (
+                                    <Button
+                                      disabled={ghBusy || ghLoginOpen}
+                                      onClick={() => setGhLoginOpen(true)}
+                                      size="xs"
+                                      variant="text"
+                                    >
+                                      {t.common.connect}
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      disabled={ghBusy}
+                                      onClick={() => void recheckGhCli()}
+                                      size="xs"
+                                      variant="text"
+                                    >
+                                      {ghBusy ? m.catalogInstalling : m.ghCli.recheck}
+                                    </Button>
+                                  )
+                                }
+                              >
+                                {!installed ? (
+                                  <Button
+                                    className="mt-1 h-auto px-0 text-[0.68rem]"
+                                    onClick={() => openExternalLink(GH_CLI_INSTALL_URL)}
+                                    size="xs"
+                                    variant="text"
+                                  >
+                                    {m.ghCli.installLink}
+                                  </Button>
+                                ) : null}
+                              </ConnectorCard>
+                            )
+                          }
 
                           if ((app.source === 'native' || app.source === 'custom') && server) {
                             const status = statusOf(server, probes[app.id])

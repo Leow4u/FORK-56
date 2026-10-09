@@ -122,18 +122,34 @@ def resolve_copilot_token() -> tuple[str, str]:
 
 
 def _gh_cli_candidates() -> list[str]:
-    """Return candidate ``gh`` binary paths, including common Homebrew installs."""
+    """Return candidate ``gh`` binary paths beyond PATH.
+
+    Covers the common installers a GUI-launched backend misses because its
+    PATH is narrower than the user's shell: Homebrew, ``~/.local/bin``, and on
+    Windows the Program Files / WinGet locations (mirrors the Electron app's
+    ``resolveGhBinary``).
+    """
     candidates: list[str] = []
 
     resolved = shutil.which("gh")
     if resolved:
         candidates.append(resolved)
 
-    for candidate in (
+    extra: list[str] = [
         "/opt/homebrew/bin/gh",
         "/usr/local/bin/gh",
+        "/usr/bin/gh",
         str(Path.home() / ".local" / "bin" / "gh"),
-    ):
+    ]
+    if IS_WINDOWS:
+        program_files = os.environ.get("ProgramFiles", "").strip()
+        local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
+        if program_files:
+            extra.append(os.path.join(program_files, "GitHub CLI", "gh.exe"))
+        if local_appdata:
+            extra.append(os.path.join(local_appdata, "Microsoft", "WinGet", "Links", "gh.exe"))
+
+    for candidate in extra:
         if candidate in candidates:
             continue
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):

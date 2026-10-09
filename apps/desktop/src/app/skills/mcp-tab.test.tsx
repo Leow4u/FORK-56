@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type * as SystemApi from '@/api/system'
 import { I18nProvider } from '@/i18n'
 import { probeCache } from '@/lib/mcp-probe-cache'
 import { queryClient } from '@/lib/query-client'
@@ -15,14 +16,35 @@ const getWork4YouConfigRecord = vi.fn()
 const getConnectorsDirectory = vi.fn()
 const getMcpCatalog = vi.fn()
 const getUsageAnalytics = vi.fn()
+const getGhAuthStatus = vi.fn()
+const startGhLogin = vi.fn()
+const pollGhLogin = vi.fn()
+const cancelGhLogin = vi.fn()
+const ghLogout = vi.fn()
 
 vi.mock('@/work4you', async importOriginal => ({
   ...(await importOriginal<typeof Work4YouApi>()),
   getWork4YouConfigRecord: () => getWork4YouConfigRecord(),
   getConnectorsDirectory: () => getConnectorsDirectory(),
   getMcpCatalog: () => getMcpCatalog(),
-  getUsageAnalytics: () => getUsageAnalytics()
+  getUsageAnalytics: () => getUsageAnalytics(),
+  getGhAuthStatus: (...args: unknown[]) => getGhAuthStatus(...args),
+  ghLogout: (...args: unknown[]) => ghLogout(...args)
 }))
+
+// The login dialog's flow (lib/gh-cli-connect) talks to api/system directly.
+vi.mock('@/api/system', async importOriginal => ({
+  ...(await importOriginal<typeof SystemApi>()),
+  getGhAuthStatus: (...args: unknown[]) => getGhAuthStatus(...args),
+  startGhLogin: (...args: unknown[]) => startGhLogin(...args),
+  pollGhLogin: (...args: unknown[]) => pollGhLogin(...args),
+  cancelGhLogin: (...args: unknown[]) => cancelGhLogin(...args),
+  ghLogout: (...args: unknown[]) => ghLogout(...args)
+}))
+
+const GH_SIGNED_OUT = { available: true, authenticated: false, login: null, host: 'github.com' }
+const GH_SIGNED_IN = { available: true, authenticated: true, login: 'octocat', host: 'github.com' }
+const GH_MISSING = { available: false, authenticated: false, login: null, host: 'github.com' }
 
 vi.mock('@/components/chat/json-document-editor', () => ({
   JsonDocumentEditor: () => null
@@ -68,6 +90,7 @@ beforeEach(() => {
   getWork4YouConfigRecord.mockResolvedValue({ mcp_servers: {} })
   getMcpCatalog.mockResolvedValue({ entries: [] })
   getUsageAnalytics.mockResolvedValue({ tools: [] })
+  getGhAuthStatus.mockResolvedValue(GH_SIGNED_OUT)
   getConnectorsDirectory.mockResolvedValue({
     apps: [
       app({
@@ -116,6 +139,8 @@ describe('McpTab directory chrome', () => {
 
   it('uses catalog empty copy on Discover and server empty copy on Connected', async () => {
     getConnectorsDirectory.mockResolvedValue({ apps: [], sections: [], portal: true })
+    // An older backend without the gh-auth route: the GitHub CLI row stays out.
+    getGhAuthStatus.mockRejectedValue(new Error('404'))
 
     await renderMcpTab()
 
@@ -317,5 +342,212 @@ describe('McpTab stays on the active backend', () => {
 
     expect(requests().filter(req => req.method === 'POST' && req.path === '/api/mcp/servers')).toEqual([])
     expect(requests().filter(req => 'connectionId' in req)).toEqual([])
+  })
+})
+
+describe('McpTab GitHub CLI connector', () => {
+  const openExternal = vi.fn(async () => undefined)
+
+  beforeEach(() => {
+    ;(window as { work4youDesktop?: unknown }).work4youDesktop = { openExternal }
+    // The dialog polls on an interval; make it tick every few ms (and stop on
+    // clearInterval) so the flow runs on real time without fake timers.
+    const live = new Map<number, boolean>()
+    let next = 0
+    vi.spyOn(window, 'setInterval').mockImplementation(((cb: () => void) => {
+      const id = ++next
+      live.set(id, true)
+
+      const loop = () => {
+        if (!live.get(id)) {
+          return
+        }
+
+        cb()
+        window.setTimeout(loop, 5)
+      }
+
+      window.setTimeout(loop, 5)
+
+      return id
+    }) as unknown as typeof window.setInterval)
+    vi.spyOn(window, 'clearInterval').mockImplementation(((id: number) => {
+      live.delete(id)
+    }) as unknown as typeof window.clearInterval)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    delete (window as { work4youDesktop?: unknown }).work4youDesktop
+  })
+
+  const ghCard = () => screen.getByText('GitHub CLI').closest<HTMLElement>('#mcp-server-github-cli')!
+
+  it('offers Connect on Discover when gh is installed but signed out, and stays off Connected', async () => {
+    await renderMcpTab()
+
+    await waitFor(() => expect(screen.getByText('GitHub CLI')).toBeTruthy())
+    // Popular owns it, like the other pinned rows.
+    expect(screen.getAllByText('GitHub CLI')).toHaveLength(1)
+    expect(within(ghCard()).getByRole('button', { name: 'Connect' })).toBeTruthy()
+    expect(within(ghCard()).queryByText('Connected')).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Connected' }))
+    })
+
+    await waitFor(() => expect(screen.getByText('Gmail')).toBeTruthy())
+    expect(screen.queryByText('GitHub CLI')).toBeNull()
+  })
+
+  it('lists a signed-in gh as a Local CLI row that can disconnect, and says who is signed in', async () => {
+    getGhAuthStatus.mockResolvedValue(GH_SIGNED_IN)
+    ghLogout.mockResolvedValue({ ok: true })
+
+    await renderMcpTab()
+
+    await waitFor(() => expect(screen.getByText('GitHub CLI')).toBeTruthy())
+    expect(within(ghCard()).getByText('Signed in as @octocat. git push and PRs use this account.')).toBeTruthy()
+    expect(within(ghCard()).getByText('Connected')).toBeTruthy()
+    expect(within(ghCard()).queryByRole('button', { name: 'Connect' })).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Connected' }))
+    })
+
+    const table = await screen.findByRole('table')
+    const row = within(table).getByRole('row', { name: /GitHub CLI/ })
+    expect(within(row).getByText('Local CLI')).toBeTruthy()
+    expect(within(row).queryByText('OAuth')).toBeNull()
+
+    getGhAuthStatus.mockResolvedValue(GH_SIGNED_OUT)
+
+    await act(async () => {
+      fireEvent.click(within(row).getByRole('button', { name: 'Disconnect' }))
+    })
+
+    await waitFor(() => expect(ghLogout).toHaveBeenCalledTimes(1))
+    // The status refetch bypasses the backend's cache.
+    await waitFor(() => expect(getGhAuthStatus).toHaveBeenCalledWith(undefined, true))
+    await waitFor(() => expect(within(table).queryByRole('row', { name: /GitHub CLI/ })).toBeNull())
+  })
+
+  it('explains how to install gh when the backend host has none, and can check again', async () => {
+    getGhAuthStatus.mockResolvedValue(GH_MISSING)
+
+    await renderMcpTab()
+
+    await waitFor(() => expect(screen.getByText('GitHub CLI')).toBeTruthy())
+    expect(
+      within(ghCard()).getByText('GitHub CLI (gh) is not installed where the agent runs. Install it, then check again.')
+    ).toBeTruthy()
+    expect(within(ghCard()).queryByRole('button', { name: 'Connect' })).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(within(ghCard()).getByRole('button', { name: 'Get GitHub CLI' }))
+    })
+
+    expect(openExternal).toHaveBeenCalledWith('https://cli.github.com')
+
+    getGhAuthStatus.mockResolvedValue(GH_SIGNED_OUT)
+
+    await act(async () => {
+      fireEvent.click(within(ghCard()).getByRole('button', { name: 'Check again' }))
+    })
+
+    await waitFor(() => expect(getGhAuthStatus).toHaveBeenCalledWith(undefined, true))
+    await waitFor(() => expect(within(ghCard()).getByRole('button', { name: 'Connect' })).toBeTruthy())
+  })
+
+  it('runs the device-code sign-in from the card: code shown, GitHub opened, card flips once approved', async () => {
+    startGhLogin.mockResolvedValue({
+      session_id: 'sid-1',
+      user_code: 'WXYZ-9876',
+      verification_url: 'https://github.com/login/device',
+      expires_in: 899,
+      poll_interval: 5
+    })
+    const pending = { session_id: 'sid-1', status: 'pending', error_message: null, login: null, setup_git: null }
+    pollGhLogin.mockResolvedValue(pending)
+
+    await renderMcpTab()
+    await waitFor(() => expect(screen.getByText('GitHub CLI')).toBeTruthy())
+
+    await act(async () => {
+      fireEvent.click(within(ghCard()).getByRole('button', { name: 'Connect' }))
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Sign in to GitHub')).toBeTruthy()
+    await waitFor(() => expect(startGhLogin).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(openExternal).toHaveBeenCalledWith('https://github.com/login/device'))
+    // The code is painted one cell per character; the whole row is the copy button.
+    const code = await within(dialog).findByRole('button', { name: 'Copy' })
+    expect(code.textContent?.replace(/[^A-Z0-9]/g, '')).toBe('WXYZ9876')
+    await waitFor(() => expect(pollGhLogin).toHaveBeenCalledWith('sid-1', undefined))
+    expect(screen.getByRole('dialog')).toBeTruthy() // still waiting while pending
+
+    // The user authorizes on GitHub; the backend stores the token in gh.
+    getGhAuthStatus.mockResolvedValue(GH_SIGNED_IN)
+    pollGhLogin.mockResolvedValue({ ...pending, status: 'approved', login: 'octocat', setup_git: true })
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(getGhAuthStatus).toHaveBeenCalledWith(undefined, true))
+    await waitFor(() => expect(within(ghCard()).getByText('Connected')).toBeTruthy())
+    expect(cancelGhLogin).not.toHaveBeenCalled()
+  })
+
+  it('cancelling the dialog drops the backend session and keeps the card signed out', async () => {
+    startGhLogin.mockResolvedValue({
+      session_id: 'sid-2',
+      user_code: 'ABCD-1234',
+      verification_url: 'https://github.com/login/device',
+      expires_in: 899,
+      poll_interval: 5
+    })
+    pollGhLogin.mockResolvedValue({
+      session_id: 'sid-2',
+      status: 'pending',
+      error_message: null,
+      login: null,
+      setup_git: null
+    })
+    cancelGhLogin.mockResolvedValue({ ok: true })
+
+    await renderMcpTab()
+    await waitFor(() => expect(screen.getByText('GitHub CLI')).toBeTruthy())
+
+    await act(async () => {
+      fireEvent.click(within(ghCard()).getByRole('button', { name: 'Connect' }))
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    await within(dialog).findByRole('button', { name: 'Copy' })
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    })
+
+    await waitFor(() => expect(cancelGhLogin).toHaveBeenCalledWith('sid-2', undefined))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(within(ghCard()).getByRole('button', { name: 'Connect' })).toBeTruthy()
+  })
+
+  it('tells the user when the backend host has no gh instead of hanging', async () => {
+    startGhLogin.mockRejectedValue(new Error('409: {"detail":"gh_missing"}'))
+
+    await renderMcpTab()
+    await waitFor(() => expect(screen.getByText('GitHub CLI')).toBeTruthy())
+
+    await act(async () => {
+      fireEvent.click(within(ghCard()).getByRole('button', { name: 'Connect' }))
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    await within(dialog).findByText('GitHub CLI (gh) is not installed where the agent runs.')
+    // Nothing left to cancel: the footer offers Close instead of Cancel.
+    expect(within(dialog).queryByRole('button', { name: 'Cancel' })).toBeNull()
+    expect(within(dialog).getAllByRole('button', { name: 'Close' }).length).toBeGreaterThan(0)
+    expect(cancelGhLogin).not.toHaveBeenCalled()
   })
 })

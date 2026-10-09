@@ -7,9 +7,10 @@ import { cn } from '@/lib/utils'
 
 import { McpAvatar, type ServerStatus, STATUS_DOT } from './mcp-avatar'
 
-/** What the Type column says: how the agent reaches the server, or that a
- *  Work4You Apps connector is hosted for it. */
-export type McpConnectedType = 'http' | 'stdio' | 'hosted'
+/** What the Type column says: how the agent reaches the server, that a
+ *  Work4You Apps connector is hosted for it, or that it is a CLI login on the
+ *  backend host (GitHub CLI). */
+export type McpConnectedType = 'http' | 'stdio' | 'hosted' | 'cli'
 
 export interface McpConnectedRow {
   /** Server / app id; anchors the row for deep links (`mcp-server-<id>`). */
@@ -63,6 +64,7 @@ function McpConnectedTableRow({ row }: { row: McpConnectedRow }) {
   const m = t.settings.mcp
 
   const typeLabel: Record<McpConnectedType, string> = {
+    cli: m.typeLocalCli,
     hosted: m.typeHostedApp,
     http: m.transportHttp,
     stdio: m.transportStdio

@@ -212,13 +212,86 @@ export function getElevenLabsVoices(profile?: ProfileScope): Promise<ElevenLabsV
   })
 }
 
-/** `gh` CLI presence + auth state, for the composer's GitHub skill pill
- *  (GitHub is deliberately not an MCP — the github/* skills are the
- *  integration). Backend caches for 5 minutes; `refresh` bypasses. */
-export function getGhAuthStatus(refresh = false): Promise<{ available: boolean; authenticated: boolean }> {
-  return work4youApi<{ available: boolean; authenticated: boolean }>({
-    ...profileScoped(),
+// ---------------------------------------------------------------------------
+// GitHub CLI (`gh`) on the backend host — the Capabilities → MCP "GitHub CLI"
+// connector. This is the credential the agent's terminal, git and the bundled
+// github-* skills use; it is NOT the Work4You Apps (Composio) GitHub row.
+// capabilityScoped so a remote Capabilities pin reports THAT host's gh.
+// ---------------------------------------------------------------------------
+
+export interface GhAuthStatus {
+  /** `gh` binary found on the backend host. */
+  available: boolean
+  /** `gh auth status` succeeds for github.com. */
+  authenticated: boolean
+  /** GitHub username when authenticated and readable. */
+  login: null | string
+  host: string
+}
+
+export interface GhLoginStart {
+  session_id: string
+  /** The 8-char code the user types at `verification_url`. */
+  user_code: string
+  verification_url: string
+  expires_in: number
+  poll_interval: number
+}
+
+export type GhLoginStatus = 'pending' | 'approved' | 'denied' | 'expired' | 'error'
+
+export interface GhLoginPoll {
+  session_id: string
+  status: GhLoginStatus
+  error_message: null | string
+  login: null | string
+  setup_git: boolean | null
+}
+
+/** Backend caches for 5 minutes; `refresh` bypasses (used right after a
+ *  login or logout so the card flips immediately). */
+export function getGhAuthStatus(profile?: ProfileScope, refresh = false): Promise<GhAuthStatus> {
+  return window.work4youDesktop.api<GhAuthStatus>({
+    ...capabilityScoped(profile),
     path: `/api/git/gh-auth${refresh ? '?refresh=true' : ''}`
+  })
+}
+
+/** Start the GitHub device-code flow for the host's `gh`. 409 when `gh` is
+ *  not installed there (`detail: "gh_missing"`). */
+export function startGhLogin(profile?: ProfileScope): Promise<GhLoginStart> {
+  return window.work4youDesktop.api<GhLoginStart>({
+    ...capabilityScoped(profile),
+    path: '/api/git/gh-auth/login',
+    method: 'POST',
+    body: {},
+    timeoutMs: 30_000
+  })
+}
+
+export function pollGhLogin(sessionId: string, profile?: ProfileScope): Promise<GhLoginPoll> {
+  return window.work4youDesktop.api<GhLoginPoll>({
+    ...capabilityScoped(profile),
+    path: `/api/git/gh-auth/login/${encodeURIComponent(sessionId)}`
+  })
+}
+
+export function cancelGhLogin(sessionId: string, profile?: ProfileScope): Promise<{ ok: boolean }> {
+  return window.work4youDesktop.api<{ ok: boolean }>({
+    ...capabilityScoped(profile),
+    path: `/api/git/gh-auth/login/${encodeURIComponent(sessionId)}`,
+    method: 'DELETE'
+  })
+}
+
+/** `gh auth logout` on the backend host. */
+export function ghLogout(profile?: ProfileScope): Promise<{ ok: boolean }> {
+  return window.work4youDesktop.api<{ ok: boolean }>({
+    ...capabilityScoped(profile),
+    path: '/api/git/gh-auth/logout',
+    method: 'POST',
+    body: {},
+    timeoutMs: 30_000
   })
 }
 
