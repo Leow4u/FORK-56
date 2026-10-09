@@ -44,6 +44,25 @@ test('terminalScriptEnv skips empty values and an absent home', () => {
   assert.deepEqual(terminalScriptEnv({ PYTHONPATH: '' }), {})
 })
 
+test('external app-owned CLI keeps bundled tools and clears inherited host Python settings', () => {
+  const env = terminalScriptEnv({
+    WORK4YOU_BUNDLED_RUNTIME: '/Applications/Work4You/runtime',
+    PATH: '/Applications/Work4You/runtime/bin:/usr/bin',
+    PYTHONHOME: '',
+    VIRTUAL_ENV: ''
+  })
+  const script = buildTerminalScript({
+    command: '/Applications/Work4You/runtime/python/bin/python3',
+    args: [],
+    cwd: '/tmp',
+    env,
+    platform: 'darwin'
+  })
+  assert.match(script, /export PATH='\/Applications\/Work4You\/runtime\/bin:\/usr\/bin'/)
+  assert.match(script, /unset PYTHONHOME/)
+  assert.match(script, /unset VIRTUAL_ENV/)
+})
+
 test('buildTerminalScript execs the resolved runtime with its env', () => {
   const script = buildTerminalScript({
     args: ['-m', 'work4you_cli.main', '--tui', '--resume', 'sess'],

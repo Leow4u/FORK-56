@@ -400,9 +400,15 @@ def _python_abi_tag() -> str:
 def _lazy_install_target() -> Optional[Path]:
     """Return the durable install-target dir, or None for venv-scoped mode.
 
-    Returns a path only when :data:`_LAZY_TARGET_ENV` is set to a non-empty
-    value. The directory is created on demand by :func:`_ensure_target_ready`.
+    Desktop runtimes always use the external extension directory. Source
+    installs opt in through :data:`_LAZY_TARGET_ENV`. The directory is
+    created on demand by :func:`_ensure_target_ready`.
     """
+    from work4you_cli.managed_runtime import extension_packages_dir
+
+    managed_target = extension_packages_dir()
+    if managed_target is not None:
+        return managed_target
     raw = os.environ.get(_LAZY_TARGET_ENV, "").strip()
     if not raw:
         return None
@@ -731,6 +737,7 @@ def _venv_pip_install(specs: tuple[str, ...], *, timeout: int = 300) -> _Install
     if target is not None:
         # --target tells both uv and pip to install into an arbitrary dir.
         target_args = ["--target", str(target)]
+    python_args = ["--python", sys.executable] if target is not None else []
     constraint_args: list[str] = []
     if constraints is not None:
         constraint_args = ["--constraint", str(constraints)]
@@ -739,7 +746,10 @@ def _venv_pip_install(specs: tuple[str, ...], *, timeout: int = 300) -> _Install
         venv_root = Path(sys.executable).parent.parent
         from tools.environments.local import work4you_subprocess_env
         uv_env = work4you_subprocess_env(inherit_credentials=False)
-        uv_env["VIRTUAL_ENV"] = str(venv_root)
+        if target is None:
+            uv_env["VIRTUAL_ENV"] = str(venv_root)
+        else:
+            uv_env.pop("VIRTUAL_ENV", None)
 
         # Tier 1: uv (preferred — fast, doesn't need pip in the venv)
         # Managed uv first: $WORK4YOU_HOME/bin is never on PATH, so a bare
@@ -750,14 +760,17 @@ def _venv_pip_install(specs: tuple[str, ...], *, timeout: int = 300) -> _Install
         # action than the caller asked for. Tier 2 pip covers the no-uv case.
         try:
             from work4you_cli.managed_uv import resolve_uv
+            from work4you_cli.managed_runtime import bundled_runtime_root
 
-            uv_bin = resolve_uv() or shutil.which("uv")
+            runtime = bundled_runtime_root()
+            bundled_uv = runtime / "bin" / ("uv.exe" if sys.platform == "win32" else "uv") if runtime else None
+            uv_bin = str(bundled_uv) if bundled_uv and bundled_uv.is_file() else resolve_uv() or shutil.which("uv")
         except Exception:
             uv_bin = shutil.which("uv")
         if uv_bin:
             try:
                 r = subprocess.run(
-                    [uv_bin, "pip", "install", *target_args, *constraint_args, *specs],
+                    [uv_bin, "pip", "install", *python_args, *target_args, *constraint_args, *specs],
                     capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, env=uv_env,
                     stdin=subprocess.DEVNULL,
                     creationflags=windows_hide_flags(),
@@ -792,6 +805,12 @@ def _venv_pip_install(specs: tuple[str, ...], *, timeout: int = 300) -> _Install
             if probe.returncode != 0:
                 raise FileNotFoundError("pip not in venv")
         except (subprocess.TimeoutExpired, FileNotFoundError):
+            from work4you_cli.managed_runtime import bundled_runtime_root
+
+            if bundled_runtime_root() is not None:
+                return _InstallResult(
+                    False, "", "The bundled package installer is unavailable. Repair or update Work4You Desktop."
+                )
             try:
                 subprocess.run(
                     [sys.executable, "-m", "ensurepip", "--upgrade", "--default-pip"],

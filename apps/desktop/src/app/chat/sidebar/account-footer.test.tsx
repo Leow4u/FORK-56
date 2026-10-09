@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { $desktopOnboarding } from '@/store/onboarding'
 import type * as OnboardingStore from '@/store/onboarding'
+import { $connection, setConnection } from '@/store/session'
 import {
   $desktopVersion,
   $updateApply,
@@ -48,6 +49,7 @@ beforeAll(() => {
 const desktopWindow = window as unknown as { work4youDesktop?: unknown }
 const initialDesktop = desktopWindow.work4youDesktop
 const initialOnboarding = $desktopOnboarding.get()
+const initialConnection = $connection.get()
 
 afterEach(() => {
   cleanup()
@@ -55,6 +57,7 @@ afterEach(() => {
   $updateStatus.set(null)
   $updateOverlayOpen.set(false)
   $desktopOnboarding.set(initialOnboarding)
+  $connection.set(initialConnection)
   resetUpdateApplyState()
 
   if (initialDesktop) {
@@ -434,8 +437,8 @@ describe('AccountFooter', () => {
 
     renderFooter()
 
-    const chip = await screen.findByRole('button', { name: '42%' })
-    expect(chip.textContent).toBe('42%')
+    const chip = await screen.findByRole('button', { name: 'Downloading 42%' })
+    expect(chip.textContent).toBe('Downloading 42%')
 
     fireEvent.click(chip)
 
@@ -463,11 +466,34 @@ describe('AccountFooter', () => {
 
     renderFooter()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Update' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Restart to finish' }))
 
     await vi.waitFor(() => {
       expect(apply).toHaveBeenCalled()
     })
+  })
+
+  it('updates this app from the ready chip even while connected remotely', async () => {
+    installAccount(SIGNED_OUT)
+    setConnection({
+      baseUrl: 'https://remote.example',
+      isFullscreen: false,
+      mode: 'remote',
+      nativeOverlayWidth: 0,
+      token: 'test',
+      wsUrl: 'wss://remote.example',
+      logs: [],
+      windowButtonPosition: null
+    })
+    const apply = vi.fn(async () => ({ handedOff: true, ok: true }))
+    desktopWindow.work4youDesktop = { ...(desktopWindow.work4youDesktop as object), updates: { apply, check: vi.fn() } }
+    $updateStatus.set({ supported: true, channel: 'installer', updateAvailable: true, prefetchReady: true })
+
+    renderFooter()
+    fireEvent.click(await screen.findByRole('button', { name: 'Restart to finish' }))
+
+    await vi.waitFor(() => expect(apply).toHaveBeenCalledTimes(1))
+    expect($updateOverlayTarget.get()).toBe('client')
   })
 
   it('picks the identity up when the first-run sign-in finishes', async () => {

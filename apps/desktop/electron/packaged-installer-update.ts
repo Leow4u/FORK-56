@@ -9,11 +9,9 @@ import { wrapHandoffForDetachedConsole } from './updater-process'
  * Packaged-app update channel: download the published installer instead of
  * running `work4you update` (git pull + uv + electron-builder).
  *
- * Windows in-app Update downloads only `Work4You-Update.exe` — the same NSIS
- * (`/S --updated --force-run`) with the Electron shell and a present:false
- * runtime stub. Site / first install / Repair stay on fat `Work4You-Setup.exe`.
- * A runtime change does not ride this hop. If Latest has no Update.exe, wait;
- * never fall back to Setup.exe or the public site URL.
+ * Windows in-app Update downloads the complete `Work4You-Setup.exe` release,
+ * including the matching runtime. Downloads are pinned to a release asset;
+ * never use a moving public-site redirect for an update already prepared.
  *
  * macOS stays on `Work4You.dmg`. Source / CLI installs
  * (`app.isPackaged === false`) keep the git hand-off.
@@ -32,14 +30,10 @@ export const GITHUB_API_HEADERS: Readonly<Record<string, string>> = {
 }
 
 export const WINDOWS_SETUP_ASSET = 'Work4You-Setup.exe'
-/** Thin NSIS for in-app Update. Not the site download. */
-export const WINDOWS_UPDATE_ASSET = 'Work4You-Update.exe'
 export const MACOS_DMG_ASSET = 'Work4You.dmg'
 /** Slim Electron overlay. Optional Latest asset — site downloads stay on Setup.exe. */
 export const WINDOWS_CHROME_ZIP_ASSET = 'Work4You-win-x64.zip'
 export const RUNTIME_FINGERPRINT_FILENAME = '.runtime-fingerprint'
-/** Latest is behind and the thin NSIS was not published. Do not offer Setup.exe. */
-export const UPDATE_INSTALLER_MISSING_REASON = 'update-installer-missing'
 
 /** Public CDN/site URLs that redirect to GitHub Latest (fallback if the API omits assets). */
 export const PUBLIC_INSTALLER_DOWNLOAD: Readonly<Record<'darwin' | 'win32', string>> = {
@@ -56,6 +50,8 @@ export interface GithubReleaseAsset {
   name: string
   browserDownloadUrl: string
   size: number | null
+  sha256?: string | null
+  id?: number
 }
 
 export interface ParsedDesktopRelease {
@@ -168,7 +164,14 @@ export function parseGithubRelease(payload: unknown): ParsedDesktopRelease | nul
         continue
       }
 
-      const item = asset as { name?: unknown; browser_download_url?: unknown; size?: unknown; state?: unknown }
+      const item = asset as {
+        name?: unknown
+        browser_download_url?: unknown
+        size?: unknown
+        state?: unknown
+        digest?: unknown
+        id?: unknown
+      }
 
       if (item.state && item.state !== 'uploaded') {
         continue
@@ -182,7 +185,14 @@ export function parseGithubRelease(payload: unknown): ParsedDesktopRelease | nul
       }
 
       const size = typeof item.size === 'number' && Number.isFinite(item.size) ? item.size : null
-      assets.push({ name, browserDownloadUrl, size })
+      const digest = typeof item.digest === 'string' ? /^sha256:([a-f0-9]{64})$/i.exec(item.digest) : null
+      assets.push({
+        name,
+        browserDownloadUrl,
+        size,
+        ...(digest ? { sha256: digest[1].toLowerCase() } : {}),
+        ...(typeof item.id === 'number' ? { id: item.id } : {})
+      })
     }
   }
 
@@ -281,6 +291,8 @@ export function packagedWindowsHandoffExtraArgs(opts: {
   installerPath: string
   installDir?: string | null
   relaunchExe: string
+  statePath?: string
+  attemptId?: string
 }): string[] {
   const args = [
     '-DesktopPid',
@@ -295,6 +307,10 @@ export function packagedWindowsHandoffExtraArgs(opts: {
 
   if (dir) {
     args.push('-InstallDir', dir)
+  }
+
+  if (opts.statePath && opts.attemptId) {
+    args.push('-StatePath', opts.statePath, '-AttemptId', opts.attemptId)
   }
 
   return args
@@ -338,91 +354,221 @@ export function packagedWindowsChromeHandoffExtraArgs(opts: {
  * wrapHandoffForDetachedConsole — a bare hidden powershell.exe dies before
  * -File processing.
  */
-export const PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1 = [
-  'param(',
-  '  [Parameter(Mandatory = $true)][int]$DesktopPid,',
-  '  [Parameter(Mandatory = $true)][string]$InstallerPath,',
-  '  [Parameter(Mandatory = $true)][string]$RelaunchExe,',
-  "  [string]$InstallDir = ''",
-  ')',
-  "$ErrorActionPreference = 'Stop'",
-  // cmd start /min gives PowerShell 5.1 a console so it survives a detached
-  // Electron spawn (hidden+detached dies before -File). Hide that console
-  // immediately so Update does not leave a black window on the desktop.
-  'function Hide-HandoffConsole {',
-  '  try {',
-  "    if (-not ('HandoffNative' -as [type])) {",
-  "      Add-Type -Namespace Handoff -Name Native -MemberDefinition @'",
-  '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();',
-  '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);',
-  "'@",
-  '    }',
-  '    $hwnd = [Handoff.Native]::GetConsoleWindow()',
-  '    if ($hwnd -ne [IntPtr]::Zero) { [void][Handoff.Native]::ShowWindow($hwnd, 0) }',
-  '  } catch {}',
-  '}',
-  'Hide-HandoffConsole',
-  'function Test-DesktopRunning([string]$Exe) {',
-  '  if (-not $Exe) { return $false }',
-  '  try {',
-  '    $want = [IO.Path]::GetFullPath($Exe)',
-  '    $hit = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |',
-  '      Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -eq $want) }',
-  '    return [bool]$hit',
-  '  } catch {',
-  '    return $false',
-  '  }',
-  '}',
-  'function Start-DesktopDetached([string]$Exe) {',
-  '  if (-not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return $false }',
-  '  $workDir = Split-Path -Parent $Exe',
-  '  try {',
-  '    $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{',
-  '      CommandLine = (\'"{0}"\' -f $Exe)',
-  '      CurrentDirectory = $workDir',
-  '    } -ErrorAction Stop',
-  '    if ($r -and $r.ReturnValue -eq 0) { return $true }',
-  '  } catch {}',
-  '  try {',
-  '    $p = Start-Process -FilePath $Exe -WorkingDirectory $workDir -PassThru',
-  '    Start-Sleep -Milliseconds 800',
-  '    return ($p -and -not $p.HasExited)',
-  '  } catch {',
-  '    return $false',
-  '  }',
-  '}',
-  'if ($DesktopPid -gt 0) {',
-  '  try { Wait-Process -Id $DesktopPid -Timeout 120 -ErrorAction SilentlyContinue } catch {}',
-  '}',
-  'Start-Sleep -Seconds 2',
-  'if (-not (Test-Path -LiteralPath $InstallerPath)) { throw "installer missing: $InstallerPath" }',
-  "$nsis = '/S --updated --force-run'",
-  'if ($InstallDir -and $InstallDir.Trim()) {',
-  '  $nsis = "/S --updated --force-run /D=$($InstallDir.Trim())"',
-  '}',
-  '$psi = New-Object System.Diagnostics.ProcessStartInfo',
-  '$psi.FileName = $InstallerPath',
-  '$psi.Arguments = $nsis',
-  '$psi.WorkingDirectory = Split-Path -Parent $InstallerPath',
-  '$psi.UseShellExecute = $false',
-  '$psi.CreateNoWindow = $true',
-  '$installer = [System.Diagnostics.Process]::Start($psi)',
-  'if (-not $installer) { throw "failed to start NSIS installer" }',
-  '$installer.WaitForExit()',
-  '$exeDeadline = (Get-Date).AddSeconds(90)',
-  'while (-not (Test-Path -LiteralPath $RelaunchExe)) {',
-  '  if ((Get-Date) -ge $exeDeadline) { break }',
-  '  Start-Sleep -Milliseconds 400',
-  '}',
-  '$runDeadline = (Get-Date).AddSeconds(20)',
-  'while ((Get-Date) -lt $runDeadline) {',
-  '  if (Test-DesktopRunning $RelaunchExe) { exit 0 }',
-  '  Start-Sleep -Milliseconds 400',
-  '}',
-  'if (-not (Start-DesktopDetached $RelaunchExe)) { exit 1 }',
-  'exit 0',
-  ''
-].join('\n')
+export const PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1 = String.raw`param(
+  [Parameter(Mandatory = $true)][int]$DesktopPid,
+  [Parameter(Mandatory = $true)][string]$InstallerPath,
+  [Parameter(Mandatory = $true)][string]$RelaunchExe,
+  [Parameter(Mandatory = $true)][string]$StatePath,
+  [Parameter(Mandatory = $true)][string]$AttemptId,
+  [string]$InstallDir = ''
+)
+$ErrorActionPreference = 'Stop'
+function Hide-HandoffConsole {
+  try {
+    Add-Type -Namespace Handoff -Name Native -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+'@
+    $hwnd = [Handoff.Native]::GetConsoleWindow()
+    if ($hwnd -ne [IntPtr]::Zero) { [void][Handoff.Native]::ShowWindow($hwnd, 0) }
+  } catch {}
+}
+function Read-UpdateState {
+  $state = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($state.attemptId -ne $AttemptId) { throw 'The update attempt has changed. Work4You was kept running.' }
+  return $state
+}
+function Write-UpdateState([string]$Stage, [string]$Failure = '', [Nullable[int]]$ExitCode = $null, [string]$Verification = '') {
+  $state = Read-UpdateState
+  # The app can become healthy before NSIS's launcher exits. Never erase that proof.
+  if (($state.stage -eq 'succeeded' -or $state.stage -eq 'failed') -and $Stage -eq 'awaiting-health') { return }
+  $state.stage = $Stage
+  $state.updatedAt = [DateTime]::UtcNow.ToString('o')
+  $state | Add-Member -NotePropertyName updaterPid -NotePropertyValue $PID -Force
+  $state | Add-Member -NotePropertyName updaterStartMarker -NotePropertyValue $updaterStartMarker -Force
+  if ($installer) {
+    $state | Add-Member -NotePropertyName installerPid -NotePropertyValue $installer.Id -Force
+    $state | Add-Member -NotePropertyName installerStartMarker -NotePropertyValue $installerStartMarker -Force
+  }
+  $state | Add-Member -NotePropertyName error -NotePropertyValue $Failure -Force
+  if ($null -ne $ExitCode) { $state | Add-Member -NotePropertyName installerExitCode -NotePropertyValue $ExitCode -Force }
+  if ($Verification) { $state | Add-Member -NotePropertyName verification -NotePropertyValue $Verification -Force }
+  $temporary = "$StatePath.$PID.tmp"
+  [IO.File]::WriteAllText($temporary, ($state | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding($false)))
+  Move-Item -LiteralPath $temporary -Destination $StatePath -Force
+}
+function Test-DesktopRunning([string]$Exe) {
+  try {
+    $want = [IO.Path]::GetFullPath($Exe)
+    return [bool](Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+      Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -eq $want) })
+  } catch { return $false }
+}
+function Start-DesktopDetached([string]$Exe) {
+  if (-not (Test-Path -LiteralPath $Exe)) { return $false }
+  try {
+    $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+      CommandLine = ('"{0}"' -f $Exe)
+      CurrentDirectory = (Split-Path -Parent $Exe)
+    } -ErrorAction Stop
+    if ($r -and $r.ReturnValue -eq 0) { return $true }
+  } catch {}
+  try {
+    Start-Process -FilePath $Exe -WorkingDirectory (Split-Path -Parent $Exe) | Out-Null
+    return $true
+  } catch { return $false }
+}
+function Get-RuntimeBlockers {
+  if (-not $InstallDir -or -not $InstallDir.Trim()) { $InstallDir = Split-Path -Parent $RelaunchExe }
+  $root = [IO.Path]::GetFullPath((Join-Path $InstallDir 'resources\runtime')).TrimEnd('\') + '\'
+  $processes = Get-CimInstance Win32_Process -OperationTimeoutSec 10 -ErrorAction Stop
+  return @($processes | Where-Object {
+    $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath)).StartsWith($root, [StringComparison]::OrdinalIgnoreCase)
+  })
+}
+Hide-HandoffConsole
+$form = $null
+$installer = $null
+$updaterStartMarker = 'win:' + (Get-Process -Id $PID).StartTime.ToUniversalTime().Ticks
+$installerStartMarker = $null
+try {
+  if (-not (Test-Path -LiteralPath $InstallerPath)) { throw "Installer missing: $InstallerPath. Try the update again." }
+  $state = Read-UpdateState
+  if ($state.stage -eq 'failed' -or $state.stage -eq 'cancelled') { exit 1 }
+  Add-Type -AssemblyName System.Windows.Forms
+  Add-Type -AssemblyName System.Drawing
+  [Windows.Forms.Application]::EnableVisualStyles()
+  $form = New-Object Windows.Forms.Form
+  $form.Text = 'Work4You update'
+  $form.ClientSize = New-Object Drawing.Size(460, 135)
+  $form.StartPosition = 'CenterScreen'
+  $form.FormBorderStyle = 'FixedDialog'
+  $form.ControlBox = $false
+  $label = New-Object Windows.Forms.Label
+  $label.Location = New-Object Drawing.Point(20, 20)
+  $label.Size = New-Object Drawing.Size(420, 55)
+  $label.Text = 'Preparing the update. Work4You will close and reopen when ready.'
+  $progress = New-Object Windows.Forms.ProgressBar
+  $progress.Location = New-Object Drawing.Point(20, 90)
+  $progress.Size = New-Object Drawing.Size(420, 18)
+  $progress.Style = 'Marquee'
+  $form.Controls.Add($label)
+  $form.Controls.Add($progress)
+  $cancel = New-Object Windows.Forms.Button
+  $cancel.Text = 'Cancel update'
+  $cancel.Location = New-Object Drawing.Point(300, 135)
+  $cancel.Size = New-Object Drawing.Size(140, 28)
+  $cancel.Visible = $false
+  $script:cancelRequested = $false
+  $cancel.add_Click({ $script:cancelRequested = $true })
+  $form.Controls.Add($cancel)
+  $form.Show()
+  [Windows.Forms.Application]::DoEvents()
+  Write-UpdateState 'ready'
+  # Main quits only after reading this ready receipt; an early script failure keeps it open.
+  $desktopDeadline = [DateTime]::UtcNow.AddSeconds(120)
+  while (Get-Process -Id $DesktopPid -ErrorAction SilentlyContinue) {
+    $waitingState = Read-UpdateState
+    if ($waitingState.stage -eq 'failed' -or $waitingState.stage -eq 'cancelled') { exit 1 }
+    if ([DateTime]::UtcNow -gt $desktopDeadline) { throw 'Work4You did not close. Close it and try the update again.' }
+    [Windows.Forms.Application]::DoEvents()
+    Start-Sleep -Milliseconds 150
+  }
+  # Detached terminals, browser tools, or a second CLI may still map the bundled
+  # Python DLLs after Electron exits. Never kill processes we do not own.
+  $blockerDeadline = [DateTime]::UtcNow.AddSeconds(120)
+  do {
+    $blockers = @(Get-RuntimeBlockers)
+    if ($blockers.Count -eq 0) { break }
+    $names = ($blockers | Select-Object -First 3 | ForEach-Object { $_.Name + ' (PID ' + $_.ProcessId + ')' }) -join ', '
+    $form.ClientSize = New-Object Drawing.Size(460, 180)
+    $cancel.Visible = $true
+    $label.Text = "Close external Work4You terminals, browser tools, or other apps using its runtime to continue: $names"
+    [Windows.Forms.Application]::DoEvents()
+    if ($script:cancelRequested) {
+      Write-UpdateState 'cancelled'
+      [void](Start-DesktopDetached $RelaunchExe)
+      exit 0
+    }
+    if ([DateTime]::UtcNow -gt $blockerDeadline) {
+      throw 'Work4You files are still in use. Close external Work4You terminals, browser tools, and other apps using its runtime, then try again.'
+    }
+    Start-Sleep -Milliseconds 500
+  } while ($true)
+  $cancel.Visible = $false
+  $form.ClientSize = New-Object Drawing.Size(460, 135)
+  Write-UpdateState 'installing'
+  $label.Text = 'Installing Work4You and its runtime. Please keep this window open.'
+  $nsis = '/S --updated --force-run'
+  if ($InstallDir -and $InstallDir.Trim()) { $nsis = "/S --updated --force-run /D=$($InstallDir.Trim())" }
+  $psi = New-Object System.Diagnostics.ProcessStartInfo
+  $psi.FileName = $InstallerPath
+  $psi.Arguments = $nsis
+  $psi.WorkingDirectory = Split-Path -Parent $InstallerPath
+  $psi.UseShellExecute = $false
+  $psi.CreateNoWindow = $true
+  $installer = [Diagnostics.Process]::Start($psi)
+  if (-not $installer) { throw 'The Work4You installer could not start.' }
+  $installerStartMarker = 'win:' + $installer.StartTime.ToUniversalTime().Ticks
+  Write-UpdateState 'installing'
+  $installDeadline = [DateTime]::UtcNow.AddMinutes(20)
+  while (-not $installer.WaitForExit(200)) {
+    [Windows.Forms.Application]::DoEvents()
+    if ([DateTime]::UtcNow -gt $installDeadline) {
+      throw 'The installer is still running after 20 minutes. Do not start another installer until it exits.'
+    }
+  }
+  if ($installer.ExitCode -ne 0) {
+    Write-UpdateState 'failed' ("The installer returned exit code " + $installer.ExitCode + '. Run the installer again.') $installer.ExitCode
+    throw ("The installer returned exit code " + $installer.ExitCode + '. Run the installer again.')
+  }
+  Write-UpdateState 'awaiting-health' '' 0
+  $label.Text = 'Opening Work4You and checking the new version...'
+  if (-not (Test-DesktopRunning $RelaunchExe)) {
+    if (-not (Start-DesktopDetached $RelaunchExe)) { throw 'Work4You could not reopen. Run the installer again to repair the app.' }
+  }
+  $healthDeadline = [DateTime]::UtcNow.AddMinutes(3)
+  do {
+    [Windows.Forms.Application]::DoEvents()
+    $state = Read-UpdateState
+    if ($state.stage -eq 'succeeded') { exit 0 }
+    if ($state.stage -eq 'failed') { throw $state.error }
+    try {
+      $health = Get-Content -LiteralPath "$StatePath.health.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+      if ($health.attemptId -eq $AttemptId -and $health.currentCommit -eq $state.expectedCommit -and $health.runtimeCommit -eq $state.expectedCommit) {
+        Write-UpdateState 'succeeded' '' 0 $health.verification
+        exit 0
+      }
+    } catch { }
+    Start-Sleep -Milliseconds 250
+  } while ([DateTime]::UtcNow -lt $healthDeadline)
+  throw 'Work4You installed, but the new version did not become ready. Open Work4You to see recovery options, or run the installer again.'
+} catch {
+  $failure = $_.Exception.Message
+  try {
+    $current = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($current.attemptId -ne $AttemptId) { exit 1 }
+  } catch { }
+  try { Write-UpdateState 'failed' $failure } catch {}
+  if ($form) {
+    $label.Text = 'The update did not finish. Your installer is available for another attempt.'
+    $progress.Style = 'Blocks'
+    $form.ControlBox = $true
+  }
+  # Keep a concrete recovery path even when the new app cannot start.
+  try {
+    Add-Type -AssemblyName System.Windows.Forms
+    $choice = [Windows.Forms.MessageBox]::Show(($failure + [Environment]::NewLine + [Environment]::NewLine + 'Open the installer folder to try again?'), 'Work4You update', 'YesNo', 'Error')
+    if ($choice -eq 'Yes') { Start-Process explorer.exe -ArgumentList ('/select,"' + $InstallerPath + '"') | Out-Null }
+  } catch {}
+  if ((-not $installer -or $installer.HasExited) -and -not (Test-DesktopRunning $RelaunchExe)) {
+    [void](Start-DesktopDetached $RelaunchExe)
+  }
+  exit 1
+} finally {
+  if ($form) { $form.Dispose() }
+}
+`
 
 export function writePackagedWindowsHandoffScript(
   tmpDir: string,
@@ -599,8 +745,8 @@ export function compareStampToRelease(opts: {
 /**
  * GitHub asset URL, else the public site redirect.
  *
- * Windows in-app apply must not call this. The site URL is fat Setup.exe.
- * `resolvePackagedInstallerApplyPlan` returns `Work4You-Update.exe` or throws.
+ * Apply uses the exact release asset URL. This public-site helper is only
+ * suitable for an unpinned manual download.
  */
 export function resolveInstallerDownloadUrl(opts: {
   platform: string
@@ -680,7 +826,7 @@ export async function checkPackagedInstallerUpdate(
 
   const asset = selectReleaseAsset(release, assetName)
 
-  if (!asset && !resolveInstallerDownloadUrl({ platform: deps.platform, asset: null, repo })) {
+  if (!asset) {
     return {
       supported: false,
       channel: 'installer',
@@ -725,22 +871,6 @@ export async function checkPackagedInstallerUpdate(
     compareBehind
   })
 
-  if (deps.platform === 'win32' && updateAvailable && !selectReleaseAsset(release, WINDOWS_UPDATE_ASSET)) {
-    return {
-      supported: true,
-      channel: 'installer',
-      updateAvailable: false,
-      reason: UPDATE_INSTALLER_MISSING_REASON,
-      message: `Latest desktop release ${release.tag} has no ${WINDOWS_UPDATE_ASSET}.`,
-      behind,
-      currentSha: stampCommit ?? undefined,
-      targetSha: releaseSha ?? undefined,
-      releaseTag: release.tag,
-      commits: [],
-      fetchedAt
-    }
-  }
-
   return {
     supported: true,
     channel: 'installer',
@@ -760,6 +890,8 @@ export interface ResolvePackagedInstallerApplyPlanDeps {
   fetchText?: (url: string) => Promise<string>
   localFingerprint?: string | null
   repo?: string
+  /** Resolve the release already offered to the user, rather than a moving Latest. */
+  releaseTag?: string
 }
 
 export interface PackagedInstallerApplyPlan {
@@ -769,6 +901,8 @@ export interface PackagedInstallerApplyPlan {
   releaseTag: string
   releaseSha: string | null
   size: number | null
+  sha256?: string | null
+  assetId?: number
 }
 
 export async function resolvePackagedInstallerApplyPlan(
@@ -781,32 +915,57 @@ export async function resolvePackagedInstallerApplyPlan(
     throw new Error('No packaged installer is published for this platform.')
   }
 
-  const payload = await deps.fetchJson(githubLatestReleaseApiUrl(repo))
+  if (deps.releaseTag && !isDesktopReleaseTag(deps.releaseTag)) {
+    throw new Error('Invalid desktop release tag.')
+  }
+
+  const payload = await deps.fetchJson(
+    deps.releaseTag
+      ? `https://api.github.com/repos/${repo}/releases/tags/${encodeURIComponent(deps.releaseTag)}`
+      : githubLatestReleaseApiUrl(repo)
+  )
+
   const release = parseGithubRelease(payload)
 
   if (!release) {
     throw new Error('Latest GitHub release is not a desktop-v* installer.')
   }
 
+  if (deps.releaseTag && release.tag !== deps.releaseTag) {
+    throw new Error('The update release changed while preparing the installer.')
+  }
+
+  let releaseSha = resolveReleaseCommitSha(release)
+
+  if (!releaseSha || releaseSha.length !== 40) {
+    releaseSha = parseCommitSha(await deps.fetchJson(githubCommitApiUrl(repo, release.tag)))
+  }
+
+  if (!releaseSha || releaseSha.length !== 40) {
+    throw new Error('Could not verify the commit for this desktop release. Try checking again.')
+  }
+
   if (deps.platform === 'win32') {
-    const updateAsset = selectReleaseAsset(release, WINDOWS_UPDATE_ASSET)
+    const updateAsset = selectReleaseAsset(release, WINDOWS_SETUP_ASSET)
 
     if (!updateAsset?.browserDownloadUrl) {
-      throw new Error(`Latest desktop release ${release.tag} has no ${WINDOWS_UPDATE_ASSET}.`)
+      throw new Error(`Latest desktop release ${release.tag} has no ${WINDOWS_SETUP_ASSET}.`)
     }
 
     return {
       kind: 'installer',
-      assetName: WINDOWS_UPDATE_ASSET,
+      assetName: WINDOWS_SETUP_ASSET,
       downloadUrl: updateAsset.browserDownloadUrl,
       releaseTag: release.tag,
-      releaseSha: resolveReleaseCommitSha(release),
-      size: updateAsset.size ?? null
+      releaseSha,
+      size: updateAsset.size ?? null,
+      ...(updateAsset.sha256 ? { sha256: updateAsset.sha256 } : {}),
+      ...(updateAsset.id !== undefined ? { assetId: updateAsset.id } : {})
     }
   }
 
   const asset = selectReleaseAsset(release, assetName)
-  const downloadUrl = resolveInstallerDownloadUrl({ platform: deps.platform, asset, repo })
+  const downloadUrl = asset?.browserDownloadUrl
 
   if (!downloadUrl) {
     throw new Error(`Latest desktop release ${release.tag} has no ${assetName}.`)
@@ -817,8 +976,10 @@ export async function resolvePackagedInstallerApplyPlan(
     assetName,
     downloadUrl,
     releaseTag: release.tag,
-    releaseSha: resolveReleaseCommitSha(release),
-    size: asset?.size ?? null
+    releaseSha,
+    size: asset?.size ?? null,
+    ...(asset?.sha256 ? { sha256: asset.sha256 } : {}),
+    ...(asset?.id !== undefined ? { assetId: asset.id } : {})
   }
 }
 
@@ -1130,6 +1291,7 @@ export function downloadHttpsToFile(
 
       out.on('error', fail)
       res.on('error', fail)
+      res.on('aborted', () => fail(new Error('Installer download was interrupted')))
 
       res.on('data', chunk => {
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
@@ -1194,6 +1356,8 @@ export function packagedInstallerApplySpawn(opts: {
   kind?: PackagedApplyKind
   /** Unpacked chrome tree (Windows chrome path). Handoff overlays this. */
   extractedDir?: string | null
+  statePath?: string
+  attemptId?: string
 }): { args: string[]; command: string } {
   if (opts.platform === 'win32') {
     const extra =
@@ -1209,7 +1373,9 @@ export function packagedInstallerApplySpawn(opts: {
             desktopPid: opts.desktopPid,
             installerPath: opts.installerPath,
             installDir: opts.installDir,
-            relaunchExe: opts.relaunchExe
+            relaunchExe: opts.relaunchExe,
+            statePath: opts.statePath,
+            attemptId: opts.attemptId
           })
 
     return wrapHandoffForDetachedConsole(

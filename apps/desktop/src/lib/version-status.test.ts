@@ -136,7 +136,14 @@ describe('resolveVersionStatus', () => {
 })
 
 describe('resolveUpdateChipLabel', () => {
-  const chipCopy = { restart: 'restart', update: 'Update' }
+  const chipCopy = {
+    restart: 'restart',
+    update: 'Update',
+    restartToFinish: 'Restart to finish',
+    openInstaller: 'Open installer',
+    preparing: 'Downloading',
+    retryDownload: 'Retry download'
+  }
 
   it('shows percent while Stage A is still downloading or unpacking', () => {
     expect(
@@ -147,10 +154,10 @@ describe('resolveUpdateChipLabel', () => {
         prefetchReady: false,
         restarting: false
       })
-    ).toBe('42%')
+    ).toBe('Downloading 42%')
   })
 
-  it('shows Update once a packaged prefetch is ready', () => {
+  it('shows Restart to finish once a packaged prefetch is ready', () => {
     expect(
       resolveUpdateChipLabel({
         applying: false,
@@ -159,7 +166,7 @@ describe('resolveUpdateChipLabel', () => {
         prefetchReady: true,
         restarting: false
       })
-    ).toBe('Update')
+    ).toBe('Restart to finish')
     expect(
       resolveUpdateChipLabel({
         applying: false,
@@ -168,7 +175,7 @@ describe('resolveUpdateChipLabel', () => {
         prefetchReady: true,
         restarting: false
       })
-    ).toBe('Update')
+    ).toBe('Restart to finish')
   })
 
   it('shows the installer download percent on the chip', () => {
@@ -189,6 +196,31 @@ describe('resolveUpdateChipLabel', () => {
         prefetchReady: false,
         restarting: false
       })
-    ).toBe('42%')
+    ).toBe('Downloading 42%')
+  })
+
+  it('names the manual step for a ready macOS installer', () => {
+    expect(
+      resolveUpdateChipLabel({
+        applying: false,
+        restarting: false,
+        prefetchReady: true,
+        platform: 'darwin',
+        channel: 'installer',
+        copy: chipCopy
+      })
+    ).toBe('Open installer')
+  })
+
+  it('shows retry after a failed download instead of its stale percent', () => {
+    expect(
+      resolveUpdateChipLabel({
+        applying: false,
+        restarting: false,
+        prefetchError: 'Offline',
+        prefetchPercent: 42,
+        copy: chipCopy
+      })
+    ).toBe('Retry download')
   })
 })

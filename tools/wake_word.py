@@ -534,8 +534,11 @@ class _OpenWakeWordEngine(_Engine):
 
     def __init__(self, cfg: Dict[str, Any]):
         from tools import lazy_deps
+        from work4you_cli.managed_runtime import bundled_runtime_root, bundled_capability_path
 
-        lazy_deps.ensure("wake.openwakeword", prompt=False)
+        bundled = bundled_runtime_root() is not None
+        if not bundled:
+            lazy_deps.ensure("wake.openwakeword", prompt=False)
 
         import openwakeword
         from openwakeword.model import Model
@@ -557,6 +560,8 @@ class _OpenWakeWordEngine(_Engine):
         # Install + bridge the runtime first, and refuse the downgrade rather
         # than ship a dead ear.
         if framework == "tflite" and not ensure_tflite_runtime():
+            if bundled:
+                raise RuntimeError("Wake-word runtime is missing from the app. Repair or update Work4You Desktop.")
             # Same lazy-install contract as every other backend; the platform
             # gate lives here because dep specs can't carry PEP 508 markers.
             try:
@@ -582,13 +587,38 @@ class _OpenWakeWordEngine(_Engine):
         # custom path must call it too, else a fresh install crashes on a missing
         # melspectrogram.onnx. A built-in name additionally pulls that pretrained
         # model; a path matches nothing in the catalog and is a no-op beyond base.
-        try:
-            openwakeword.utils.download_models([model_ref])
-        except Exception as e:  # pragma: no cover - network/path dependent
-            logger.debug("openwakeword model download skipped: %s", e)
+        model_kwargs = {}
+        if bundled:
+            suffix = "Tflite" if framework == "tflite" else "Onnx"
+            melspec = bundled_capability_path("wake", "melspectrogram" + suffix)
+            embedding = bundled_capability_path("wake", "embedding" + suffix)
+            if melspec is None or embedding is None:
+                raise RuntimeError("Wake-word models are missing from the app. Repair or update Work4You Desktop.")
+            model_kwargs = {"melspec_model_path": str(melspec), "embedding_model_path": str(embedding)}
+            if not _looks_like_path(model_ref):
+                # Explicit alternative built-ins download into user data;
+                # upstream's default target is the sealed package directory.
+                from work4you_constants import get_work4you_home
+
+                cache = get_work4you_home() / "cache" / "wakewords" / "openwakeword"
+                name = model_ref.replace(" ", "_")
+                matches = [entry["download_url"] for entry in openwakeword.MODELS.values()
+                           if name in entry["download_url"].rsplit("/", 1)[-1]]
+                if not matches:
+                    raise ValueError(f"Unknown openWakeWord model: {model_ref}")
+                model_path = cache / Path(matches[0]).name
+                model_path = model_path.with_suffix("." + framework)
+                if not model_path.is_file():
+                    openwakeword.utils.download_models([name], target_directory=str(cache))
+                model_ref = str(model_path)
+        else:
+            try:
+                openwakeword.utils.download_models([model_ref])
+            except Exception as e:  # pragma: no cover - network/path dependent
+                logger.debug("openwakeword model download skipped: %s", e)
         models = [model_ref]
 
-        self._model = Model(wakeword_models=models, inference_framework=framework)
+        self._model = Model(wakeword_models=models, inference_framework=framework, **model_kwargs)
         self._labels = list(self._model.models.keys())
 
     def process(self, frame) -> bool:
@@ -637,6 +667,14 @@ def _sherpa_model_root() -> Path:
 
 def _ensure_sherpa_model(root: Optional[Path] = None) -> Path:
     """Download + unpack the sherpa KWS model once; return its directory."""
+    if root is None:
+        from work4you_cli.managed_runtime import bundled_capability_path, bundled_runtime_root
+
+        tokens = bundled_capability_path("wake", "sherpaTokens")
+        if tokens is not None:
+            return tokens.parent
+        if bundled_runtime_root() is not None:
+            raise RuntimeError("Wake-word models are missing from the app. Repair or update Work4You Desktop.")
     root = root or _sherpa_model_root()
     target = root / _SHERPA_KWS_MODEL_DIR
     if (target / "tokens.txt").exists():
@@ -671,7 +709,10 @@ class _SherpaKwsEngine(_Engine):
     def __init__(self, cfg: Dict[str, Any]):
         from tools import lazy_deps
 
-        lazy_deps.ensure("wake.sherpa", prompt=False)
+        from work4you_cli.managed_runtime import bundled_runtime_root
+
+        if bundled_runtime_root() is None:
+            lazy_deps.ensure("wake.sherpa", prompt=False)
 
         import sherpa_onnx
         from sherpa_onnx import text2token

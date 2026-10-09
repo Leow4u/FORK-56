@@ -1,39 +1,28 @@
 name: Desktop install smoke
 
-# Measures real installer/runtime deploy time on GitHub-hosted runners.
-# Dev phase: manual dispatch + optional post-release hook (no PR gate — macOS cost).
-#
-# Inputs (workflow_dispatch):
-#   mode=release  — download Work4You-Setup.exe / Work4You.dmg from a desktop-v* release
-#                   (deploy phase breakdown appears only after a desktop-v* built with this
-#                   instrumentation; older release installers omit install-deploy-phases.json)
-#   mode=build    — build unsigned installer from the checked-out commit (slow; pre-release;
-#                   use this to validate deploy-phase timing on the branch under test)
-#   platform      — both | windows | macos
-#   tag           — release tag (empty / latest → GitHub Latest when it is desktop-v*)
-
+# Native, actual packaged Electron/backend measurements. No PR gate and no
+# speed threshold: record install, first window and usable backend separately.
+# Post-release inputs are the publishing run's immutable asset IDs/commit.
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: release (download published installer) or build (CI-build from checkout)
+        description: Published signed release or unsigned build from this checkout
         type: choice
-        options:
-          - release
-          - build
+        options: [release, build]
         default: release
       platform:
-        description: Platforms to exercise
+        description: Native platforms to exercise
         type: choice
-        options:
-          - both
-          - windows
-          - macos
+        options: [both, windows, macos]
         default: both
       tag:
-        description: desktop-v* tag for release mode (empty = GitHub Latest)
+        description: Initial desktop-v tag (empty resolves Latest once)
         type: string
-        required: false
+        default: ""
+      next_tag:
+        description: Optional different app-owned desktop-v tag for install then replacement; empty tests reinstall
+        type: string
         default: ""
   workflow_run:
     workflows: ["Release Desktop Installer"]
@@ -49,165 +38,154 @@ concurrency:
 
 jobs:
   resolve:
-    name: Resolve smoke parameters
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       mode: ${{ steps.params.outputs.mode }}
       tag: ${{ steps.params.outputs.tag }}
+      commit: ${{ steps.params.outputs.commit }}
       run_windows: ${{ steps.params.outputs.run_windows }}
       run_macos: ${{ steps.params.outputs.run_macos }}
+      windows_asset: ${{ steps.params.outputs.windows_asset }}
+      windows_sha256: ${{ steps.params.outputs.windows_sha256 }}
+      macos_asset: ${{ steps.params.outputs.macos_asset }}
+      macos_sha256: ${{ steps.params.outputs.macos_sha256 }}
+      next_commit: ${{ steps.params.outputs.next_commit }}
+      next_windows_asset: ${{ steps.params.outputs.next_windows_asset }}
+      next_windows_sha256: ${{ steps.params.outputs.next_windows_sha256 }}
+      next_macos_asset: ${{ steps.params.outputs.next_macos_asset }}
+      next_macos_sha256: ${{ steps.params.outputs.next_macos_sha256 }}
     steps:
-      - name: Decide mode and platforms
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Resolve pinned artifacts
         id: params
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          SOURCE_RUN: ${{ github.event.workflow_run.id }}
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SOURCE_COMMIT: ${{ github.event.workflow_run.head_sha }}
+          SMOKE_MODE: ${{ inputs.mode || 'release' }}
+          SMOKE_PLATFORM: ${{ inputs.platform || 'both' }}
+          SMOKE_TAG: ${{ inputs.tag }}
+          NEXT_TAG: ${{ inputs.next_tag }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
-              echo "Skipping smoke: release workflow conclusion=${{ github.event.workflow_run.conclusion }}"
-              echo "run_windows=false" >> "$GITHUB_OUTPUT"
-              echo "run_macos=false" >> "$GITHUB_OUTPUT"
-              echo "mode=release" >> "$GITHUB_OUTPUT"
-              echo "tag=" >> "$GITHUB_OUTPUT"
+          mkdir -p smoke-source
+          if [ "$EVENT" = workflow_run ]; then
+            published=0
+            if [ "$SOURCE_CONCLUSION" = success ]; then
+              published="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN/jobs" --jq '[.jobs[] | select(.name=="Publish desktop release" and .conclusion=="success")] | length')"
+            fi
+            if [ "$published" = 0 ]; then
+              echo 'run_windows=false' >> "$GITHUB_OUTPUT"
+              echo 'run_macos=false' >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            published="$(
-              gh api "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/jobs" \
-                --jq '[.jobs[] | select(.name=="Publish desktop release" and .conclusion=="success")] | length'
-            )"
-            if [ "${published:-0}" = "0" ]; then
-              echo "Skipping smoke: Release Desktop run did not publish installers (train gate or unsigned-only)."
-              echo "run_windows=false" >> "$GITHUB_OUTPUT"
-              echo "run_macos=false" >> "$GITHUB_OUTPUT"
-              echo "mode=release" >> "$GITHUB_OUTPUT"
-              echo "tag=" >> "$GITHUB_OUTPUT"
-              exit 0
+            gh run download "$SOURCE_RUN" --repo "$REPO" --name desktop-release-smoke --dir smoke-source
+            python3 scripts/ci/resolve_install_smoke.py smoke-source/desktop-release-smoke.json --expected-commit "$SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
+          elif [ "$SMOKE_MODE" = release ]; then
+            if [ -z "$SMOKE_TAG" ] || [ "$SMOKE_TAG" = latest ]; then
+              SMOKE_TAG="$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"
             fi
-            MODE="release"
-            PLATFORM="both"
+            [[ "$SMOKE_TAG" =~ ^desktop-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            commit="$(gh api "repos/$REPO/commits/$SMOKE_TAG" --jq .sha)"
+            gh api "repos/$REPO/releases/tags/$SMOKE_TAG" | jq --arg commit "$commit" '. + {smokeCommit: $commit}' > smoke-source/desktop-release-smoke.json
+            python3 scripts/ci/resolve_install_smoke.py smoke-source/desktop-release-smoke.json >> "$GITHUB_OUTPUT"
           else
-            MODE="${{ inputs.mode }}"
-            PLATFORM="${{ inputs.platform }}"
+            echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           fi
-          TAG="${{ inputs.tag }}"
-          if [ -z "$TAG" ] || [ "$TAG" = "latest" ]; then
-            TAG="$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          if [ -n "$NEXT_TAG" ]; then
+            [[ "$NEXT_TAG" =~ ^desktop-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            commit="$(gh api "repos/$REPO/commits/$NEXT_TAG" --jq .sha)"
+            gh api "repos/$REPO/releases/tags/$NEXT_TAG" | jq --arg commit "$commit" '. + {smokeCommit: $commit}' > smoke-source/next-release-smoke.json
+            python3 scripts/ci/resolve_install_smoke.py smoke-source/next-release-smoke.json --prefix next_ >> "$GITHUB_OUTPUT"
           fi
-          if [ -n "$TAG" ] && [[ "$TAG" != desktop-v* ]]; then
-            echo "::error::Expected desktop-v* tag, got: $TAG"
-            exit 1
-          fi
-          RUN_WIN="false"
-          RUN_MAC="false"
-          if [ "$PLATFORM" = "both" ] || [ "$PLATFORM" = "windows" ]; then RUN_WIN="true"; fi
-          if [ "$PLATFORM" = "both" ] || [ "$PLATFORM" = "macos" ]; then RUN_MAC="true"; fi
-          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "run_windows=$RUN_WIN" >> "$GITHUB_OUTPUT"
-          echo "run_macos=$RUN_MAC" >> "$GITHUB_OUTPUT"
-          echo "::notice::desktop install smoke mode=$MODE tag=${TAG:-<none>} windows=$RUN_WIN macos=$RUN_MAC"
+          echo "mode=$SMOKE_MODE" >> "$GITHUB_OUTPUT"
+          echo "run_windows=$([ "$SMOKE_PLATFORM" != macos ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "run_macos=$([ "$SMOKE_PLATFORM" != windows ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-install-smoke-inputs
+          path: smoke-source/*.json
+          if-no-files-found: ignore
 
   windows-smoke:
     name: Windows install smoke
     needs: resolve
     if: needs.resolve.outputs.run_windows == 'true'
     runs-on: windows-latest
-    timeout-minutes: ${{ needs.resolve.outputs.mode == 'build' && 150 || 45 }}
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Download published installer (release mode)
-        if: needs.resolve.outputs.mode == 'release'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: pwsh
-        run: |
-          $tag = '${{ needs.resolve.outputs.tag }}'
-          if (-not $tag) { throw 'release mode requires a desktop-v* tag (set inputs.tag or publish a Latest release)' }
-          Write-Host "::notice::Downloading Work4You-Setup.exe from release $tag"
-          $sw = [System.Diagnostics.Stopwatch]::StartNew()
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          gh release download $tag --repo '${{ github.repository }}' --pattern 'Work4You-Setup.exe' --dir dist
-          if (-not (Test-Path dist/Work4You-Setup.exe)) { throw 'Work4You-Setup.exe missing after download' }
-          $bytes = (Get-Item dist/Work4You-Setup.exe).Length
-          $sw.Stop()
-          Write-Host "::notice::Downloaded $bytes bytes in $($sw.ElapsedMilliseconds)ms"
-
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        if: needs.resolve.outputs.mode == 'build'
         with:
           node-version: 26
           cache: npm
-
-      - name: Install npm 12
-        if: needs.resolve.outputs.mode == 'build'
-        run: npm i -g npm@12
-
-      - name: Build unsigned Windows installer (build mode)
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.11'
+      - run: npm i -g npm@12
+      - run: npm ci
+      - name: Download exact selected assets
+        if: needs.resolve.outputs.mode == 'release' || needs.resolve.outputs.next_windows_asset != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ needs.resolve.outputs.windows_asset }}
+          NEXT_ASSET: ${{ needs.resolve.outputs.next_windows_asset }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          if [ -n "$ASSET" ]; then gh api "repos/${{ github.repository }}/releases/assets/$ASSET" -H 'Accept: application/octet-stream' > dist/Work4You-Setup.exe; fi
+          if [ -n "$NEXT_ASSET" ]; then gh api "repos/${{ github.repository }}/releases/assets/$NEXT_ASSET" -H 'Accept: application/octet-stream' > dist/Work4You-Next.exe; fi
+      - name: Build unsigned Windows installer
         if: needs.resolve.outputs.mode == 'build'
         shell: pwsh
         run: |
-          npm ci
-          Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
-          Remove-Item Env:UV_PROJECT_ENVIRONMENT -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path apps/desktop/build/runtime | Out-Null
-          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop-runtime.ps1 `
-            -OutDir apps/desktop/build/runtime
+          $ErrorActionPreference = 'Stop'
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop-runtime.ps1 -OutDir apps/desktop/build/runtime
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime build failed' }
           Push-Location apps/desktop
           $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
           npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed' }
           npm run builder -- --win nsis --publish never
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS build failed' }
           Pop-Location
-          $release = 'apps/desktop/release'
-          $bundle = Get-ChildItem -Path $release -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.Extension -ieq '.exe' -and $_.Name -match 'win' } |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-          if (-not $bundle) { throw 'NSIS installer not found under apps/desktop/release' }
+          $bundle = Get-ChildItem apps/desktop/release -File | Where-Object { $_.Extension -ieq '.exe' -and $_.Name -match 'win' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $bundle) { throw 'NSIS installer not found' }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item $bundle.FullName dist/Work4You-Setup.exe
-
-      - name: Run Windows install smoke
+      - name: Install and verify real packaged backend
         shell: pwsh
+        env:
+          SMOKE_MODE: ${{ needs.resolve.outputs.mode }}
+          SMOKE_COMMIT: ${{ needs.resolve.outputs.commit }}
+          SMOKE_SHA256: ${{ needs.resolve.outputs.windows_sha256 }}
+          NEXT_COMMIT: ${{ needs.resolve.outputs.next_commit }}
+          NEXT_SHA256: ${{ needs.resolve.outputs.next_windows_sha256 }}
         run: |
-          pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/ci/desktop-install-smoke.ps1 `
-            -InstallerPath dist/Work4You-Setup.exe `
-            -JsonOut install-smoke-windows.json `
-            -LogOut install-smoke-windows.log
-
-      - name: Job summary (Windows)
+          $params = @{ InstallerPath='dist/Work4You-Setup.exe'; ExpectedCommit=$env:SMOKE_COMMIT; Sha256=$env:SMOKE_SHA256 }
+          if ($env:SMOKE_MODE -eq 'release') { $params.RequireSigned = $true }
+          if (Test-Path dist/Work4You-Next.exe) { $params.NextInstallerPath='dist/Work4You-Next.exe'; $params.NextCommit=$env:NEXT_COMMIT; $params.NextSha256=$env:NEXT_SHA256 }
+          & scripts/ci/desktop-install-smoke.ps1 @params
+          exit $LASTEXITCODE
+      - name: Summary
         if: always()
         shell: bash
-        env:
-          SMOKE_TAG: ${{ needs.resolve.outputs.tag }}
-          SMOKE_MODE: ${{ needs.resolve.outputs.mode }}
         run: |
-          set -euo pipefail
-          if [ -f install-smoke-windows.json ]; then
-            python3 scripts/ci/summarize-install-smoke.py install-smoke-windows.json \
-              --markdown --tag "$SMOKE_TAG" --mode "$SMOKE_MODE" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f install-smoke-windows.log ]; then
-            {
-              echo ""
-              echo "<details><summary>Install log</summary>"
-              echo ""
-              echo '```'
-              cat install-smoke-windows.log
-              echo '```'
-              echo "</details>"
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-
+          if [ -f install-smoke-windows.json ]; then python scripts/ci/summarize-install-smoke.py install-smoke-windows.json --markdown >> "$GITHUB_STEP_SUMMARY"; fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: desktop-install-smoke-windows
-          path: |
-            install-smoke-windows.json
-            install-smoke-windows.log
+          path: install-smoke-windows.*
           if-no-files-found: warn
 
   macos-smoke:
@@ -215,93 +193,66 @@ jobs:
     needs: resolve
     if: needs.resolve.outputs.run_macos == 'true'
     runs-on: macos-latest
-    timeout-minutes: ${{ needs.resolve.outputs.mode == 'build' && 150 || 60 }}
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Download published installer (release mode)
-        if: needs.resolve.outputs.mode == 'release'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          tag='${{ needs.resolve.outputs.tag }}'
-          if [ -z "$tag" ]; then
-            echo "::error::release mode requires a desktop-v* tag"
-            exit 1
-          fi
-          mkdir -p dist
-          gh release download "$tag" --repo "${{ github.repository }}" --pattern 'Work4You.dmg' --dir dist
-          test -f dist/Work4You.dmg
-
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        if: needs.resolve.outputs.mode == 'build'
         with:
           node-version: 26
           cache: npm
-
-      - name: Install npm 12
-        if: needs.resolve.outputs.mode == 'build'
-        run: npm i -g npm@12
-
-      - name: Build unsigned macOS DMG (build mode)
-        if: needs.resolve.outputs.mode == 'build'
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.11'
+      - run: npm i -g npm@12
+      - run: npm ci
+      - name: Download exact selected assets
+        if: needs.resolve.outputs.mode == 'release' || needs.resolve.outputs.next_macos_asset != ''
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ needs.resolve.outputs.macos_asset }}
+          NEXT_ASSET: ${{ needs.resolve.outputs.next_macos_asset }}
         run: |
           set -euo pipefail
-          npm ci
-          unset VIRTUAL_ENV UV_PROJECT_ENVIRONMENT || true
-          mkdir -p apps/desktop/build/runtime
-          bash scripts/build-desktop-runtime.sh --out-dir apps/desktop/build/runtime --skip-relocate-test
+          mkdir -p dist
+          if [ -n "$ASSET" ]; then gh api "repos/${{ github.repository }}/releases/assets/$ASSET" -H 'Accept: application/octet-stream' > dist/Work4You.dmg; fi
+          if [ -n "$NEXT_ASSET" ]; then gh api "repos/${{ github.repository }}/releases/assets/$NEXT_ASSET" -H 'Accept: application/octet-stream' > dist/Work4You-Next.dmg; fi
+      - name: Build unsigned macOS installer
+        if: needs.resolve.outputs.mode == 'build'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          set -euo pipefail
+          bash scripts/build-desktop-runtime.sh --out-dir apps/desktop/build/runtime
           cd apps/desktop
           npm run build
           npm run builder -- --mac dmg --publish never
           cd ../..
-          dmg="$(find apps/desktop/release -maxdepth 1 -name '*.dmg' | head -n 1)"
-          if [ -z "$dmg" ]; then
-            echo "::error::DMG not found under apps/desktop/release"
-            exit 1
-          fi
           mkdir -p dist
+          dmg="$(find apps/desktop/release -maxdepth 1 -name '*.dmg' | head -n 1)"
+          test -n "$dmg"
           cp "$dmg" dist/Work4You.dmg
-
-      - name: Run macOS install smoke
-        run: |
-          chmod +x scripts/ci/desktop-install-smoke.sh
-          bash scripts/ci/desktop-install-smoke.sh \
-            --dmg dist/Work4You.dmg \
-            --json-out install-smoke-macos.json \
-            --log-out install-smoke-macos.log
-
-      - name: Job summary (macOS)
-        if: always()
+      - name: Install and verify real packaged backend
         env:
-          SMOKE_TAG: ${{ needs.resolve.outputs.tag }}
           SMOKE_MODE: ${{ needs.resolve.outputs.mode }}
+          SMOKE_COMMIT: ${{ needs.resolve.outputs.commit }}
+          SMOKE_SHA256: ${{ needs.resolve.outputs.macos_sha256 }}
+          NEXT_COMMIT: ${{ needs.resolve.outputs.next_commit }}
+          NEXT_SHA256: ${{ needs.resolve.outputs.next_macos_sha256 }}
         run: |
           set -euo pipefail
-          if [ -f install-smoke-macos.json ]; then
-            python3 scripts/ci/summarize-install-smoke.py install-smoke-macos.json \
-              --markdown --tag "$SMOKE_TAG" --mode "$SMOKE_MODE" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f install-smoke-macos.log ]; then
-            {
-              echo ""
-              echo "<details><summary>Install log</summary>"
-              echo ""
-              echo '```'
-              cat install-smoke-macos.log
-              echo '```'
-              echo "</details>"
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-
+          args=(--dmg dist/Work4You.dmg --commit "$SMOKE_COMMIT" --sha256 "$SMOKE_SHA256" --json-out install-smoke-macos.json --log-out install-smoke-macos.log)
+          if [ "$SMOKE_MODE" = release ]; then args+=(--require-signed); fi
+          if [ -f dist/Work4You-Next.dmg ]; then args+=(--next-dmg dist/Work4You-Next.dmg --next-commit "$NEXT_COMMIT" --next-sha256 "$NEXT_SHA256"); fi
+          bash scripts/ci/desktop-install-smoke.sh "${args[@]}"
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f install-smoke-macos.json ]; then python3 scripts/ci/summarize-install-smoke.py install-smoke-macos.json --markdown >> "$GITHUB_STEP_SUMMARY"; fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: desktop-install-smoke-macos
-          path: |
-            install-smoke-macos.json
-            install-smoke-macos.log
+          path: install-smoke-macos.*
           if-no-files-found: warn

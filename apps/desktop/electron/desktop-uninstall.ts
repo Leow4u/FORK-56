@@ -66,7 +66,12 @@ function modeRemovesUserData(mode) {
  * Returns null when we can't confidently identify a removable bundle (e.g.
  * running from a dev checkout, or a system-package install we must not rmtree).
  */
-function resolveRemovableAppPath(execPath, platform, env: any = {}) {
+function resolveRemovableAppPath(
+  execPath,
+  platform,
+  env: any = {},
+  managed?: { runtimeRoot: string; uninstallerExists: boolean }
+) {
   const exe = String(execPath || '')
 
   if (!exe) {
@@ -94,6 +99,16 @@ function resolveRemovableAppPath(execPath, platform, env: any = {}) {
   if (platform === 'win32') {
     // NSIS per-user installs Work4You.exe directly in the install dir.
     const dir = p.dirname(exe)
+
+    if (managed) {
+      // The user may choose any NSIS destination. Prove the app layout and
+      // native uninstaller instead of guessing from the folder's name.
+      return p.basename(exe).toLowerCase() === 'work4you.exe' &&
+        managed.uninstallerExists &&
+        p.resolve(managed.runtimeRoot).toLowerCase() === p.join(dir, 'resources', 'runtime').toLowerCase()
+        ? dir
+        : null
+    }
 
     if (/[\\/]Work4You$/i.test(dir) || /[\\/]work4you-desktop$/i.test(dir)) {
       return dir
@@ -206,7 +221,8 @@ function buildWindowsCleanupScript({
   agentRoot,
   uninstallArgs,
   appPath,
-  work4youHome
+  work4youHome,
+  uninstallerExe = null as string | null
 }) {
   const pid = Number(desktopPid) || 0
   // cmd.exe has no string escaping inside quotes; strip embedded quotes (paths
@@ -243,7 +259,11 @@ function buildWindowsCleanupScript({
     `${q(pythonExe)} ${uninstallArgs.map(q).join(' ')}`
   )
 
-  if (appPath) {
+  if (uninstallerExe) {
+    // Let NSIS remove its shortcuts and uninstall registration as well as the
+    // application. Never fall through to raw deletion after an NSIS failure.
+    lines.push('cd /d "%TEMP%"', `start "" /wait ${q(uninstallerExe)} /S`, 'if errorlevel 1 exit /b %errorlevel%')
+  } else if (appPath) {
     lines.push(
       'set /a tries=0',
       ':rmloop',

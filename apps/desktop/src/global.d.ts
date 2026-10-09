@@ -435,6 +435,9 @@ declare global {
       updates: {
         check: () => Promise<DesktopUpdateStatus>
         apply: (opts?: DesktopUpdateApplyOptions) => Promise<DesktopUpdateApplyResult>
+        result: () => Promise<DesktopPackagedUpdateState | null>
+        openRecoveryInstaller: (opts?: { previous?: boolean }) => Promise<{ ok: boolean; message?: string }>
+        onResult: (callback: (state: DesktopPackagedUpdateState) => void) => () => void
         getBranch: () => Promise<{ branch: string }>
         setBranch: (name: string) => Promise<{ branch: string }>
         onProgress: (callback: (payload: DesktopUpdateProgress) => void) => () => void
@@ -506,6 +509,13 @@ export interface DesktopVersionInfo {
   nodeVersion: string
   platform: string
   work4youRoot: string
+  runtime?: {
+    layout: 'app-owned' | 'legacy'
+    root: string
+    pythonExecutable: string
+    work4youHome: string
+    commit: string | null
+  }
   /** True when the running renderer bundle predates desktop changes in the
    *  installed source tree (runtime updated, app binary not rebuilt/swapped). */
   bundleOutOfSync?: boolean
@@ -593,8 +603,23 @@ export interface DesktopUpdateApplyOptions {
   stopSafeBlockers?: boolean
 }
 
+/** Installer exit alone is not success; main confirms the running app and backend. */
+export interface DesktopPackagedUpdateState {
+  stage: 'pending' | 'ready' | 'installing' | 'awaiting-health' | 'succeeded' | 'failed' | 'cancelled'
+  attemptId: string
+  releaseTag: string
+  expectedCommit: string
+  previousCommit: string | null
+  installerPath: string
+  recoveryInstallerPath: string | null
+  error?: string | null
+  installerExitCode?: number | null
+}
+
 export interface DesktopUpdateApplyResult {
   ok: boolean
+  /** The user kept active work running; no update handoff took place. */
+  cancelled?: boolean
   branch?: string
   error?: string
   message?: string

@@ -488,6 +488,12 @@ async def _lifespan(app: "FastAPI"):
         selftest_task.cancel()
         auto_archive_task.cancel()
         await PTY_REGISTRY.close_all()
+        bundled_browser = sys.modules.get("tools.bundled_browser")
+        if bundled_browser is not None:
+            try:
+                await asyncio.to_thread(bundled_browser.cleanup_bundled_browser)
+            except Exception:
+                _log.exception("Could not close the desktop's browser during shutdown")
         if os.getenv("WORK4YOU_DESKTOP") == "1":
             _terminate_desktop_managed_gateway()
 

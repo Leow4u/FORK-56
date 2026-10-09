@@ -5,6 +5,8 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import type { DesktopUpdateStatus } from '@/global'
 import { I18nProvider } from '@/i18n/context'
 import {
+  $desktopVersion,
+  $packagedUpdateResult,
   $updateApply,
   $updateOverlayOpen,
   $updateOverlayTarget,
@@ -79,10 +81,12 @@ describe('ApplyingView', () => {
     $updateOverlayOpen.set(false)
     $updateOverlayTarget.set('client')
     $updateStatus.set(null)
+    $desktopVersion.set(null)
+    $packagedUpdateResult.set(null)
     resetUpdateApplyState()
   })
 
-  it('keeps the applying sheet to a title and olive bar', async () => {
+  it('shows the current operation and measured progress while applying', async () => {
     $updateOverlayOpen.set(true)
     $updateStatus.set({
       supported: true,
@@ -110,12 +114,12 @@ describe('ApplyingView', () => {
     expect(screen.getByRole('heading', { name: /downloading/i })).toBeTruthy()
     const bar = screen.getByRole('progressbar', { name: /downloading/i })
     expect(bar.querySelector('[class*="midground"]')).toBeTruthy()
-    expect(screen.queryByText(/signed installer/i)).toBeNull()
+    expect(screen.getByText('Downloading the signed Work4You installer')).toBeTruthy()
     expect(screen.queryByText(/this window will close/i)).toBeNull()
     expect(screen.queryByText(/don't reopen/i)).toBeNull()
   })
 
-  it('keeps the restart sheet to the title and hides the handoff caption', async () => {
+  it('keeps the handoff message visible while restarting', async () => {
     $updateOverlayOpen.set(true)
     $updateStatus.set({
       supported: true,
@@ -137,9 +141,97 @@ describe('ApplyingView', () => {
     await renderUpdatesOverlay()
 
     expect(screen.getByRole('heading', { name: 'Restarting Work4You…' })).toBeTruthy()
-    expect(screen.queryByText(/swap the desktop shell/i)).toBeNull()
-    expect(screen.queryByText(/comes back on its own/i)).toBeNull()
+    expect(screen.getByText(/swap the desktop shell/i)).toBeTruthy()
+    expect(screen.getByText(/comes back on its own/i)).toBeTruthy()
     expect(screen.getByRole('progressbar', { name: 'Restarting Work4You…' })).toBeTruthy()
+  })
+
+  it('shows a failed background download with an enabled retry action', async () => {
+    $updateOverlayOpen.set(true)
+    $updateStatus.set({
+      supported: true,
+      updateAvailable: true,
+      channel: 'installer',
+      prefetchPercent: 42,
+      prefetchError: 'The download was interrupted.'
+    })
+
+    await renderUpdatesOverlay()
+
+    expect(screen.getByRole('alert').textContent).toBe('The download was interrupted.')
+    expect((screen.getByRole('button', { name: 'Retry download' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.queryByRole('progressbar')).toBeNull()
+  })
+
+  it('explains the macOS replacement and offers to open the installer', async () => {
+    $desktopVersion.set({
+      appVersion: '1.0.0',
+      electronVersion: '1',
+      nodeVersion: '1',
+      platform: 'darwin',
+      work4youRoot: '/app'
+    })
+    $updateOverlayOpen.set(true)
+    $updateStatus.set({ supported: true, updateAvailable: true, channel: 'installer', prefetchReady: true })
+
+    await renderUpdatesOverlay()
+
+    expect(screen.getByRole('button', { name: 'Open installer' })).toBeTruthy()
+    expect(screen.getByText(/quit Work4You, drag it to Applications/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Restart to finish' })).toBeNull()
+  })
+
+  it('preserves measured zero progress rather than inventing completion', async () => {
+    $updateOverlayOpen.set(true)
+    $updateStatus.set({ supported: true, updateAvailable: true, channel: 'installer' })
+    $updateApply.set({
+      applying: true,
+      stage: 'fetch',
+      message: 'Connecting to the download server',
+      percent: 0,
+      error: null,
+      command: null,
+      log: []
+    })
+
+    await renderUpdatesOverlay()
+
+    expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('0')
+  })
+
+  it('offers saved installer recovery after a persisted failed update', async () => {
+    const previousBridge = window.work4youDesktop
+    const openRecoveryInstaller = vi.fn(async () => ({ ok: true }))
+    window.work4youDesktop = { updates: { openRecoveryInstaller } } as unknown as Window['work4youDesktop']
+    $packagedUpdateResult.set({
+      attemptId: 'failed-install',
+      stage: 'failed',
+      releaseTag: 'desktop-v1.0.0',
+      expectedCommit: 'a'.repeat(40),
+      previousCommit: 'b'.repeat(40),
+      installerPath: '/cache/current.exe',
+      recoveryInstallerPath: '/cache/previous.exe'
+    })
+    $updateOverlayOpen.set(true)
+    $updateStatus.set({ supported: true, updateAvailable: true, channel: 'installer' })
+    $updateApply.set({
+      applying: false,
+      stage: 'error',
+      error: 'packaged-update-failed',
+      message: 'The installer failed.',
+      percent: null,
+      command: null,
+      log: []
+    })
+
+    try {
+      await renderUpdatesOverlay()
+      fireEvent.click(screen.getByRole('button', { name: 'Show previous installer' }))
+      await vi.waitFor(() => expect(openRecoveryInstaller).toHaveBeenCalledWith({ previous: true }))
+      expect(screen.getByRole('button', { name: 'Show installer' })).toBeTruthy()
+    } finally {
+      window.work4youDesktop = previousBridge
+    }
   })
 })
 

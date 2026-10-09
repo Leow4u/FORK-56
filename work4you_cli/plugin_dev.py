@@ -269,12 +269,14 @@ def _check_manifest_v2(report: "DoctorReport", manifest: Any) -> None:
             "pin an upper bound (e.g. 'pkg>=1.0,<2') per the dependency policy"
         )
     if missing:
+        from work4you_cli.managed_runtime import extension_install_command
+
+        command = extension_install_command(missing) or "pip install " + " ".join(f"'{m}'" for m in missing)
         report.warning(
             "declared python_dependencies not installed: "
             + ", ".join(missing)
             + " — Work4You never auto-installs plugin dependencies; "
-            + "install manually: pip install "
-            + " ".join(f"'{m}'" for m in missing)
+            + "install manually: " + command
         )
 
     schema = getattr(manifest, "config_schema", {}) or {}

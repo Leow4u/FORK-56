@@ -16,7 +16,7 @@ import {
   checkUpdates,
   openUpdatesWindow,
   refreshDesktopVersion,
-  startActiveUpdate
+  startClientUpdate
 } from '@/store/updates'
 
 import { ListRow, SettingsContent, SettingsGroup } from './primitives'
@@ -73,7 +73,14 @@ export function AboutSettings() {
 
   const finalize = resolveUpdateFinalizeAction({
     channel: status?.channel,
-    copy: { restartToFinish: t.updates.restartToFinish, updateNow: a.updateNow },
+    copy: {
+      restartToFinish: t.updates.restartToFinish,
+      updateNow: a.updateNow,
+      openInstaller: t.updates.openInstaller,
+      preparing: t.updates.preparingDownload,
+      retryDownload: t.updates.retryDownload
+    },
+    platform: version?.platform,
     prefetchError: status?.prefetchError,
     prefetchPercent: status?.prefetchPercent,
     prefetchReady: status?.prefetchReady
@@ -180,7 +187,7 @@ export function AboutSettings() {
 
             {updateAvailable && supported && !applying && (
               <>
-                <Button disabled={finalize.disabled} onClick={() => startActiveUpdate()} size="sm">
+                <Button disabled={finalize.disabled} onClick={() => startClientUpdate()} size="sm">
                   {finalize.label}
                 </Button>
                 <Button onClick={() => openUpdatesWindow()} size="sm" variant="textStrong">

@@ -1,10 +1,12 @@
+import path from 'node:path'
+
+import { buildDesktopBackendEnv, work4youManagedNodePathEntries } from './backend-env'
+import { runtimeManifestFiles } from './runtime-manifest.mjs'
+
 /**
  * Packaged Windows Setup and macOS DMG can ship a CI-built Python runtime in
- * extraResources (`resources/runtime`). That snapshot is the repo Python at
- * installer-build time, so agent and tool fixes reach installed apps only
- * when this installer is rebuilt. First launch must use that tree — not
- * install.ps1 / install.sh's GitHub + uv bootstrap — when the manifest says
- * the payload is present.
+ * extraResources (`resources/runtime`). The shell and runtime are one release.
+ * Packaged launches use that tree directly, with a separate writable data HOME.
  *
  * Pure helpers (no Electron imports) so node:test can cover the gate without
  * booting the app.
@@ -12,8 +14,6 @@
 
 export const BUNDLED_RUNTIME_DIRNAME = 'runtime'
 export const BUNDLED_RUNTIME_MANIFEST = 'manifest.json'
-export const BUNDLED_RUNTIME_DEPLOY_SCRIPT = 'deploy-desktop-runtime.ps1'
-export const BUNDLED_RUNTIME_DEPLOY_SCRIPT_POSIX = 'deploy-desktop-runtime.sh'
 export const BUNDLED_RUNTIME_SCHEMA_VERSION = 1
 
 export interface BundledRuntimeManifest {
@@ -22,6 +22,128 @@ export interface BundledRuntimeManifest {
   commit?: unknown
   branch?: unknown
   arch?: unknown
+  layout?: unknown
+  pythonExecutable?: unknown
+  capabilities?: unknown
+  interfaces?: unknown
+}
+
+export interface AppOwnedRuntime {
+  bundleDir: string
+  root: string
+  pythonExecutable: string
+  commit: string | null
+}
+
+/** Resolve only the new, relocatable layout. A broken shipped bundle must not
+ * silently switch the app to an unrelated CLI checkout or bootstrap it online. */
+export function resolveAppOwnedRuntime({
+  bundleDir,
+  manifest,
+  isPackaged,
+  fileExists,
+  platform = process.platform
+}: {
+  bundleDir: string | null
+  manifest: BundledRuntimeManifest | null
+  isPackaged: boolean
+  fileExists: (filename: string) => boolean
+  platform?: NodeJS.Platform
+}): AppOwnedRuntime | null {
+  if (!isPackaged || (platform !== 'win32' && platform !== 'darwin')) {
+    return null
+  }
+
+  const paths = platform === 'win32' ? path.win32 : path.posix
+  const relativePython = typeof manifest?.pythonExecutable === 'string' ? manifest.pythonExecutable : ''
+
+  const fail = () => {
+    throw new Error(
+      'The installed Work4You runtime is incomplete. Reinstall Work4You from the downloads page. Your conversations and settings remain in their existing data folder.'
+    )
+  }
+
+  if (
+    !bundleDir ||
+    manifest?.layout !== 'app-owned' ||
+    !isPresentBundledRuntime(manifest) ||
+    !relativePython ||
+    paths.isAbsolute(relativePython) ||
+    relativePython.split(/[\\/]/).some(part => part === '..') ||
+    /^[a-z]:/i.test(relativePython)
+  ) {
+    return fail()
+  }
+
+  const root = paths.join(bundleDir, 'work4you')
+  const pythonExecutable = paths.join(bundleDir, relativePython)
+
+  const files = runtimeManifestFiles(manifest)
+
+  if (!files || files.some(file => !fileExists(paths.join(bundleDir, file)))) {
+    return fail()
+  }
+
+  return {
+    bundleDir,
+    root,
+    pythonExecutable,
+    commit: typeof manifest.commit === 'string' ? manifest.commit : null
+  }
+}
+
+export function appOwnedRuntimeBackend({
+  runtime,
+  work4youHome,
+  appExecutable,
+  args,
+  currentEnv = process.env,
+  platform = process.platform
+}: {
+  runtime: AppOwnedRuntime
+  work4youHome: string
+  appExecutable: string
+  args: string[]
+  currentEnv?: NodeJS.ProcessEnv
+  platform?: NodeJS.Platform
+}) {
+  const paths = platform === 'win32' ? path.win32 : path.posix
+  const delimiter = platform === 'win32' ? ';' : ':'
+  const inherited = buildDesktopBackendEnv({ work4youHome, currentEnv, platform })
+  const pathKey = Object.keys(inherited).find(key => key.toUpperCase() === 'PATH') || 'PATH'
+
+  return {
+    kind: 'python',
+    runtimeLayout: 'app-owned',
+    label: `Bundled Work4You at ${runtime.root}`,
+    command: runtime.pythonExecutable,
+    args: ['-m', 'work4you_cli.main', ...args],
+    root: runtime.root,
+    bootstrap: false,
+    shell: false,
+    env: {
+      ...inherited,
+      WORK4YOU_HOME: work4youHome,
+      WORK4YOU_BUNDLED_RUNTIME: runtime.bundleDir,
+      WORK4YOU_DESKTOP_APP_EXECUTABLE: appExecutable,
+      // The shipped interpreter owns its packages. Host Python/venv settings
+      // must not change which code a desktop release actually runs.
+      PYTHONPATH: runtime.root,
+      PYTHONHOME: '',
+      VIRTUAL_ENV: '',
+      PYTHONNOUSERSITE: '1',
+      PYTHONDONTWRITEBYTECODE: '1',
+      [pathKey]: [
+        ...work4youManagedNodePathEntries(runtime.bundleDir, { platform }),
+        ...(platform === 'win32'
+          ? ['cmd', 'bin', 'usr/bin'].map(dir => paths.join(runtime.bundleDir, 'git', dir))
+          : []),
+        paths.join(runtime.bundleDir, 'bin'),
+        paths.dirname(runtime.pythonExecutable),
+        inherited[pathKey]
+      ].join(delimiter)
+    }
+  }
 }
 
 export function bundledRuntimeDir(resourcesPath: string | null | undefined): string | null {
@@ -50,61 +172,7 @@ export function isPresentBundledRuntime(manifest: BundledRuntimeManifest | null 
   return Boolean(manifest) && manifest?.present === true
 }
 
-/**
- * Packaged Windows / macOS builds with a present runtime must deploy that
- * payload instead of opening the 13-stage first-launch overlay.
- */
-export function shouldDeployBundledRuntime(opts: {
-  isPackaged: boolean
-  isWindows: boolean
-  isMac?: boolean
-  manifest: BundledRuntimeManifest | null | undefined
-}): boolean {
-  const nativeHost = Boolean(opts.isWindows) || Boolean(opts.isMac)
-
-  return Boolean(opts.isPackaged) && nativeHost && isPresentBundledRuntime(opts.manifest)
-}
-
-/** Git Bash must not block first open. Terminal degrades until bash exists. */
+/** Source installs may provide Git separately; packaged Windows ships it. */
 export function gitBashShouldBlockBoot(): boolean {
   return false
-}
-
-export function bundledDeployArgs(opts: {
-  bundleDir: string
-  work4youHome: string
-  installStampPath?: string | null
-}): string[] {
-  const args = [
-    '-NoProfile',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-File',
-    opts.bundleDir.replace(/\//g, '\\') + '\\' + BUNDLED_RUNTIME_DEPLOY_SCRIPT.replace(/\//g, '\\'),
-    '-BundleDir',
-    opts.bundleDir,
-    '-Work4YouHome',
-    opts.work4youHome
-  ]
-
-  if (opts.installStampPath) {
-    args.push('-InstallStampPath', opts.installStampPath)
-  }
-
-  return args
-}
-
-export function bundledPosixDeployArgs(opts: {
-  bundleDir: string
-  work4youHome: string
-  installStampPath?: string | null
-}): string[] {
-  const script = `${opts.bundleDir.replace(/\\/g, '/')}/${BUNDLED_RUNTIME_DEPLOY_SCRIPT_POSIX}`
-  const args = [script, '--bundle-dir', opts.bundleDir, '--work4you-home', opts.work4youHome]
-
-  if (opts.installStampPath) {
-    args.push('--install-stamp', opts.installStampPath)
-  }
-
-  return args
 }

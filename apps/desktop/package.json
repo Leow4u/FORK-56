@@ -249,6 +249,9 @@
       "gatekeeperAssess": false,
       "hardenedRuntime": true,
       "notarize": false,
+      "signIgnore": [
+        "/Contents/Resources/runtime/computer-use/.*CuaDriver\\.app(?:/|$)"
+      ],
       "target": [
         "dmg",
         "zip"

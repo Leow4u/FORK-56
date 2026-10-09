@@ -84,6 +84,21 @@ def test_lifespan_warmup_is_synchronous():
     )
 
 
+def test_backend_shutdown_closes_its_managed_browser(monkeypatch):
+    """A normal backend stop drains Chrome even though it has its own process group."""
+    import sys
+    from types import SimpleNamespace
+
+    closed = threading.Event()
+    monkeypatch.setitem(sys.modules, "tools.bundled_browser", SimpleNamespace(cleanup_bundled_browser=closed.set))
+    async def lifecycle():
+        async with web_server_mod._lifespan(web_server_mod.app):
+            assert not closed.is_set()
+    with patch.object(web_server_mod, "_warm_gateway_module", lambda: None):
+        asyncio.run(lifecycle())
+    assert closed.is_set()
+
+
 # ---------------------------------------------------------------------------
 # Test 2 — get_status run_in_executor keeps event loop free for other requests
 # ---------------------------------------------------------------------------

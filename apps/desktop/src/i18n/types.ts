@@ -3394,6 +3394,18 @@ export interface Translations {
     availableBodyInstaller: string
     availableBodyChrome: string
     updateNow: string
+    availableBodyMacInstaller: string
+    openInstaller: string
+    preparingDownload: string
+    retryDownload: string
+    manualInstallTitle: string
+    manualInstallBody: string
+    completedTitle: string
+    completedBody: string
+    reviewFailure: string
+    showInstaller: string
+    showPreviousInstaller: string
+    recoveryUnavailable: string
     restartToFinish: string
     maybeLater: string
     moreChanges: (count: number) => string

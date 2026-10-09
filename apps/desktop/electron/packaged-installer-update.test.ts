@@ -1,12 +1,13 @@
 /**
  * Tests for electron/packaged-installer-update.ts — packaged Windows/macOS
- * installs download Work4You-Update.exe (Windows) or the DMG (macOS)
- * instead of `work4you update`. Site Setup.exe is not an in-app hop.
+ * installs download the complete Work4You-Setup.exe (Windows) or DMG (macOS)
+ * instead of updating an independent checkout with `work4you update`.
  *
  * Run with: npx vitest run --project electron electron/packaged-installer-update.test.ts
  */
 
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import type https from 'node:https'
 import os from 'node:os'
@@ -45,10 +46,8 @@ import {
   sameGitCommit,
   selectReleaseAsset,
   shouldUsePackagedInstallerUpdate,
-  UPDATE_INSTALLER_MISSING_REASON,
   WINDOWS_CHROME_ZIP_ASSET,
   WINDOWS_SETUP_ASSET,
-  WINDOWS_UPDATE_ASSET,
   writePackagedWindowsChromeHandoffScript,
   writePackagedWindowsHandoffScript
 } from './packaged-installer-update'
@@ -71,7 +70,7 @@ function fingerprintAsset() {
 
 function updateAsset() {
   return {
-    name: WINDOWS_UPDATE_ASSET,
+    name: WINDOWS_SETUP_ASSET,
     browser_download_url: 'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-Update.exe',
     size: 110_000_000,
     state: 'uploaded'
@@ -301,12 +300,86 @@ test('writePackagedWindowsHandoffScript writes the orchestrator next to the inst
   }
 })
 
+test.skipIf(process.platform !== 'win32')('the generated handoff parses with native Windows PowerShell', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'w4y-handoff-parse-'))
+
+  try {
+    const script = writePackagedWindowsHandoffScript(tmp)
+    const literal = script.replace(/'/g, "''")
+    execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `$tokens = $null; $errors = $null; [void][System.Management.Automation.Language.Parser]::ParseFile('${literal}', [ref]$tokens, [ref]$errors); if ($errors.Count) { $errors | Out-String | Write-Error; exit 1 }`
+      ],
+      { encoding: 'utf8', windowsHide: true, timeout: 30_000 }
+    )
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test('all handoff receipt reads explicitly decode the UTF-8 written by Node', () => {
+  const reads = PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1.split('\n').filter(line => line.includes('Get-Content'))
+  assert.ok(reads.length > 0)
+
+  for (const read of reads) {
+    assert.match(read, /-Encoding UTF8\b/, read)
+  }
+})
+
+test.skipIf(process.platform !== 'win32')('native receipt rewrites preserve Unicode user and installer paths', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'w4y-handoff-unicode-'))
+
+  try {
+    const statePath = path.join(tmp, 'state.json')
+    const installerPath = 'C:\\Users\\João\\更新\\Work4You-Setup.exe'
+    fs.writeFileSync(
+      statePath,
+      JSON.stringify({ attemptId: 'unicode', stage: 'pending', updatedAt: '', installerPath }),
+      'utf8'
+    )
+    const start = PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1.indexOf('function Read-UpdateState')
+    const end = PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1.indexOf('function Test-DesktopRunning')
+    const scriptPath = path.join(tmp, 'receipt-roundtrip.ps1')
+    fs.writeFileSync(
+      scriptPath,
+      [
+        'param([string]$StatePath)',
+        "$ErrorActionPreference = 'Stop'",
+        "$AttemptId = 'unicode'",
+        "$updaterStartMarker = 'win:123'",
+        '$installer = $null',
+        PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1.slice(start, end),
+        "Write-UpdateState 'ready'"
+      ].join('\n'),
+      'utf8'
+    )
+    execFileSync(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-StatePath', statePath],
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 30_000
+      }
+    )
+    const rewritten = JSON.parse(fs.readFileSync(statePath, 'utf8'))
+    assert.equal(rewritten.stage, 'ready')
+    assert.equal(rewritten.installerPath, installerPath)
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
 test('Windows handoff script carries the same NSIS flags and waits for the desktop PID', () => {
   for (const flag of NSIS_SILENT_UPDATE_FLAGS) {
     assert.ok(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1.includes(flag), `handoff script must pass NSIS flag ${flag}`)
   }
 
-  assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Wait-Process/)
+  assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Get-Process -Id \$DesktopPid/)
   assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Win32_Process/)
   assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Start-DesktopDetached/)
   assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Hide-HandoffConsole/)
@@ -335,7 +408,7 @@ test('resolveInstallerDownloadUrl prefers the GitHub asset, then work4you.ai', (
   )
 })
 
-test('checkPackagedInstallerUpdate offers the thin NSIS when the stamp is behind Latest', async () => {
+test('checkPackagedInstallerUpdate offers the complete installer when the stamp is behind Latest', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
@@ -365,25 +438,21 @@ test('checkPackagedInstallerUpdate offers the thin NSIS when the stamp is behind
   assert.deepEqual(result.commits, [])
 })
 
-test('checkPackagedInstallerUpdate does not offer Setup.exe when the thin NSIS is missing', async () => {
+test('checkPackagedInstallerUpdate refuses an incomplete release without the platform installer', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
-    fetchJson: async () =>
-      releasePayload({
-        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
-      }),
+    fetchJson: async () => releasePayload({ assets: [] }),
     compareBehind: async () => 4
   })
 
-  assert.equal(result.supported, true)
-  assert.equal(result.updateAvailable, false)
-  assert.equal(result.reason, UPDATE_INSTALLER_MISSING_REASON)
-  assert.equal(result.channel, 'installer')
-  assert.match(result.message || '', /Work4You-Update\.exe/)
+  assert.equal(result.supported, false)
+  assert.equal(result.reason, 'installer-asset-missing')
+  assert.equal(result.updateAvailable, undefined)
+  assert.equal(result.behind, undefined)
 })
 
-test('checkPackagedInstallerUpdate stays quiet on a site-only Latest', async () => {
+test('the complete Setup release is sufficient without a second update asset', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
@@ -391,43 +460,8 @@ test('checkPackagedInstallerUpdate stays quiet on a site-only Latest', async () 
     compareBehind: async () => 4
   })
 
-  assert.equal(result.updateAvailable, false)
-  assert.equal(result.reason, UPDATE_INSTALLER_MISSING_REASON)
-})
-
-test('checkPackagedInstallerUpdate ignores a runtime fingerprint change when Update.exe exists', async () => {
-  const result = await checkPackagedInstallerUpdate({
-    stampCommit: STAMP_SHA,
-    platform: 'win32',
-    localFingerprint: OTHER_FINGERPRINT,
-    fetchJson: async () =>
-      releasePayload({
-        assets: [...(releasePayload().assets as object[]), updateAsset(), fingerprintAsset()]
-      }),
-    fetchText: async () => MATCHING_FINGERPRINT,
-    compareBehind: async () => 1
-  })
-
-  assert.equal(result.channel, 'installer')
   assert.equal(result.updateAvailable, true)
-  assert.equal(result.reason, undefined)
-})
-
-test('checkPackagedInstallerUpdate does not switch to Setup.exe when fingerprints differ and Update.exe is absent', async () => {
-  const result = await checkPackagedInstallerUpdate({
-    stampCommit: STAMP_SHA,
-    platform: 'win32',
-    localFingerprint: OTHER_FINGERPRINT,
-    fetchJson: async () =>
-      releasePayload({
-        assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
-      }),
-    fetchText: async () => MATCHING_FINGERPRINT,
-    compareBehind: async () => 1
-  })
-
-  assert.equal(result.updateAvailable, false)
-  assert.equal(result.reason, UPDATE_INSTALLER_MISSING_REASON)
+  assert.equal(result.behind, 4)
 })
 
 test('checkPackagedInstallerUpdate is up to date when stamp matches Latest', async () => {
@@ -492,50 +526,65 @@ test('checkPackagedInstallerUpdate is unsupported on Linux even if packaged', as
   assert.equal(result.reason, 'no-installer-channel')
 })
 
-test('resolvePackagedInstallerApplyPlan returns only Work4You-Update.exe on Windows', async () => {
+test('apply pins the complete Setup asset to the release already offered', async () => {
+  const urls: string[] = []
+
   const plan = await resolvePackagedInstallerApplyPlan({
     platform: 'win32',
-    localFingerprint: OTHER_FINGERPRINT,
-    fetchJson: async () =>
-      releasePayload({
-        assets: [...(releasePayload().assets as object[]), updateAsset(), ...chromeAssets()]
-      }),
-    fetchText: async () => MATCHING_FINGERPRINT
+    releaseTag: 'desktop-v0.0.27',
+    fetchJson: async url => {
+      urls.push(url)
+
+      return releasePayload()
+    }
   })
 
-  assert.equal(plan.kind, 'installer')
-  assert.equal(plan.assetName, WINDOWS_UPDATE_ASSET)
-  assert.match(plan.downloadUrl, /Work4You-Update\.exe$/)
-  assert.doesNotMatch(plan.downloadUrl, /Work4You-Setup\.exe/)
-  assert.doesNotMatch(plan.downloadUrl, /work4you\.ai/)
-  assert.equal(plan.releaseTag, 'desktop-v0.0.27')
+  assert.equal(plan.assetName, WINDOWS_SETUP_ASSET)
+  assert.match(plan.downloadUrl, /releases\/download\/desktop-v0.0.27\/Work4You-Setup\.exe$/)
+  assert.equal(plan.releaseSha, LATEST_SHA)
+  assert.deepEqual(urls, ['https://api.github.com/repos/Leow4u/FORK-56/releases/tags/desktop-v0.0.27'])
 })
 
-test('resolvePackagedInstallerApplyPlan refuses Setup.exe when the thin NSIS is missing', async () => {
+test('apply rejects a different release instead of silently switching a prepared update', async () => {
   await assert.rejects(
     () =>
       resolvePackagedInstallerApplyPlan({
         platform: 'win32',
-        localFingerprint: OTHER_FINGERPRINT,
-        fetchJson: async () =>
-          releasePayload({
-            assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
-          }),
-        fetchText: async () => MATCHING_FINGERPRINT
+        releaseTag: 'desktop-v0.0.27',
+        fetchJson: async () => releasePayload({ tag_name: 'desktop-v0.0.28' })
       }),
-    /Work4You-Update\.exe/
+    /release changed/
   )
 })
 
-test('resolvePackagedInstallerApplyPlan refuses the public site Setup URL', async () => {
+test('apply refuses a moving site fallback if the pinned installer is absent', async () => {
   await assert.rejects(
     () =>
       resolvePackagedInstallerApplyPlan({
         platform: 'win32',
-        fetchJson: async () => releasePayload()
+        fetchJson: async () => releasePayload({ assets: [] })
       }),
-    /Work4You-Update\.exe/
+    /Work4You-Setup\.exe/
   )
+})
+
+test('apply resolves a release tag commit and passes through the GitHub asset digest', async () => {
+  const sha256 = 'c'.repeat(64)
+
+  const plan = await resolvePackagedInstallerApplyPlan({
+    platform: 'win32',
+    fetchJson: async url =>
+      url.includes('/commits/')
+        ? { sha: LATEST_SHA }
+        : releasePayload({
+            target_commitish: 'main',
+            assets: [{ ...releasePayload().assets[0], digest: 'sha256:' + sha256, id: 123 }]
+          })
+  })
+
+  assert.equal(plan.releaseSha, LATEST_SHA)
+  assert.equal(plan.sha256, sha256)
+  assert.equal(plan.assetId, 123)
 })
 
 test('parseRuntimeFingerprint accepts 64 hex and rejects junk', () => {

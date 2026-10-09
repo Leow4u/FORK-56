@@ -11,7 +11,8 @@ const copy = {
   availableBodyInstaller:
     'Work4You downloads this update in the background while you keep working. Click Restart to finish when it appears. The app closes briefly and reopens updated.',
   availableBodyChrome:
-    'A new Work4You app update is ready. It downloads and unpacks in the background — click Restart to finish when the chip is ready. Your existing runtime stays in place.'
+    'A new Work4You app update is ready. It downloads and unpacks in the background — click Restart to finish when the chip is ready.',
+  availableBodyMacInstaller: 'Open the installer, quit Work4You, drag it to Applications, and reopen it.'
 }
 
 describe('resolveUpdateCopy', () => {
@@ -55,10 +56,22 @@ describe('resolveUpdateCopy', () => {
     expect(r.body).not.toContain('installer')
     expect(r.body).not.toContain('minute')
   })
+
+  it('explains the manual macOS replacement before opening the installer', () => {
+    expect(
+      resolveUpdateCopy({ target: 'client', shownItems: 0, channel: 'installer', platform: 'darwin', copy }).body
+    ).toBe(copy.availableBodyMacInstaller)
+  })
 })
 
 describe('resolveUpdateFinalizeAction', () => {
-  const copy = { restartToFinish: 'Restart to finish', updateNow: 'Update now' }
+  const copy = {
+    restartToFinish: 'Restart to finish',
+    updateNow: 'Update now',
+    openInstaller: 'Open installer',
+    preparing: 'Downloading',
+    retryDownload: 'Retry download'
+  }
 
   it('keeps git Update now enabled', () => {
     expect(resolveUpdateFinalizeAction({ copy })).toEqual({ disabled: false, label: 'Update now' })
@@ -67,7 +80,7 @@ describe('resolveUpdateFinalizeAction', () => {
   it('keeps the installer button off until the background download reports progress', () => {
     expect(resolveUpdateFinalizeAction({ channel: 'installer', copy })).toEqual({
       disabled: true,
-      label: 'Update now'
+      label: 'Downloading'
     })
   })
 
@@ -110,6 +123,12 @@ describe('resolveUpdateFinalizeAction', () => {
         prefetchError: 'download-failed',
         prefetchReady: false
       })
-    ).toEqual({ disabled: false, label: 'Update now' })
+    ).toEqual({ disabled: false, label: 'Retry download' })
+  })
+
+  it('offers the manual installer for macOS instead of promising an automatic restart', () => {
+    expect(
+      resolveUpdateFinalizeAction({ channel: 'installer', platform: 'darwin', copy, prefetchReady: true })
+    ).toEqual({ disabled: false, label: 'Open installer' })
   })
 })

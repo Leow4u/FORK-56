@@ -26,7 +26,7 @@ import { notifyError } from '@/store/notifications'
 import { $desktopOnboarding, startManualProviderOAuth } from '@/store/onboarding'
 import { $activeProfile } from '@/store/profile'
 import { $connection, $gatewayState } from '@/store/session'
-import { $desktopVersion, $updateApply, $updateStatus, startActiveUpdate } from '@/store/updates'
+import { $desktopVersion, $updateApply, $updateStatus, startClientUpdate } from '@/store/updates'
 import { getPortalAccount } from '@/work4you'
 
 import { SETTINGS_ROUTE } from '../../routes'
@@ -99,8 +99,15 @@ export function AccountFooter() {
     applying,
     copy: {
       restart: t.shell.statusbar.restart,
-      update: t.common.update
+      update: t.common.update,
+      restartToFinish: t.updates.restartToFinish,
+      openInstaller: t.updates.openInstaller,
+      preparing: t.updates.preparingDownload,
+      retryDownload: t.updates.retryDownload
     },
+    channel: updateStatus?.channel,
+    platform: desktopVersion?.platform,
+    prefetchError: updateStatus?.prefetchError,
     prefetchPercent: updateStatus?.prefetchPercent,
     prefetchReady: updateStatus?.prefetchReady,
     restarting: updateApply.stage === 'restart'
@@ -281,7 +288,7 @@ export function AccountFooter() {
               'transition-opacity duration-100 hover:opacity-90 hover:transition-none',
               '[-webkit-app-region:no-drag]'
             )}
-            onClick={() => startActiveUpdate()}
+            onClick={() => startClientUpdate()}
             type="button"
           >
             {updateLabel}

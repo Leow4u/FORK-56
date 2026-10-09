@@ -137,6 +137,11 @@ def _build_browser_env() -> dict:
     from tools.environments.local import work4you_subprocess_env
 
     env = work4you_subprocess_env(inherit_credentials=False)
+    from work4you_cli.managed_runtime import bundled_capability_path
+
+    browser = bundled_capability_path("browser", "executable")
+    if browser is not None:
+        env.setdefault("AGENT_BROWSER_EXECUTABLE_PATH", str(browser))
     for _key in _BROWSER_PASSTHROUGH_KEYS:
         if _key in os.environ:
             env[_key] = os.environ[_key]
@@ -2505,6 +2510,13 @@ def _find_agent_browser(*, validate: bool = True) -> str:
         FileNotFoundError: If agent-browser is not installed
     """
     global _cached_agent_browser, _agent_browser_resolved
+    from work4you_cli.managed_runtime import bundled_capability_path, bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        command = bundled_capability_path("browser")
+        if command is None:
+            raise FileNotFoundError("The bundled browser is missing. Repair or update Work4You Desktop.")
+        return str(command)
     if _agent_browser_resolved:
         if _cached_agent_browser is None:
             raise FileNotFoundError(
@@ -4907,6 +4919,9 @@ def cleanup_browser(task_id: Optional[str] = None) -> None:
     """
     if task_id is None:
         task_id = "default"
+    from tools.bundled_browser import cleanup_bundled_browser
+
+    cleanup_bundled_browser(task_id)
 
     # Expand to the full set of session keys to reap. For a bare task_id
     # that includes the cloud/primary key + the local sidecar if one exists.
@@ -5029,6 +5044,9 @@ def cleanup_all_browsers() -> None:
 
     Useful for cleanup on shutdown.
     """
+    from tools.bundled_browser import cleanup_bundled_browser
+
+    cleanup_bundled_browser()
     with _cleanup_lock:
         task_ids = list(_active_sessions.keys())
     for task_id in task_ids:
@@ -5116,6 +5134,10 @@ def _chromium_installed() -> bool:
     fail at runtime.
     """
     global _cached_chromium_installed
+    from work4you_cli.managed_runtime import bundled_capability_path, bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        return bundled_capability_path("browser", "executable") is not None
     if _cached_chromium_installed is not None:
         return _cached_chromium_installed
 
@@ -5180,6 +5202,10 @@ def _maybe_autoinstall_chromium() -> bool:
     Returns True only when Chromium is present afterwards.
     """
     global _chromium_autoinstall_attempted
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        return _chromium_installed()
     if _chromium_autoinstall_attempted:
         return _chromium_installed()
     _chromium_autoinstall_attempted = True

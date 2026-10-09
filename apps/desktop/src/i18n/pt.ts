@@ -940,10 +940,10 @@ export const pt = defineLocale({
       branchCommit: (branch, commit) => `Branch ${branch} · Commit ${commit}`,
       removeApp: 'Remover o app',
       removeAppDesc:
-        'Desinstala o app desktop deste computador. Seu agente, suas conversas e suas configurações são mantidos.',
+        'Desinstala o app desktop deste computador. Suas conversas e configurações são mantidas.',
       removeAppConfirmTitle: 'Remover o app?',
       removeAppConfirm:
-        'O app desktop será removido e fechado para concluir. Seu agente, suas conversas e suas configurações são mantidos.',
+        'O app desktop será removido e fechado para concluir. Suas conversas e configurações são mantidas.',
       removeAppWorking: 'Removendo…',
       removeAppCancel: 'Cancelar',
       removeAppFailed: 'Não foi possível remover o app.',
@@ -4382,10 +4382,24 @@ export const pt = defineLocale({
     availableBodyNoChangelog:
       'Uma versão mais recente está pronta. As notas da versão não estão disponíveis para este tipo de instalação.',
     availableBodyInstaller:
-      'O Work4You baixa esta atualização em segundo plano enquanto você continua trabalhando. Clique em Atualizar quando a opção aparecer. O app fecha por alguns instantes e reabre já atualizado.',
+      'O Work4You baixa a atualização em segundo plano enquanto você trabalha. Quando estiver pronta, escolha Reiniciar para concluir. O app instala a atualização e reabre automaticamente.',
     availableBodyChrome:
-      'Uma nova atualização do app Work4You está pronta. Ela é baixada e descompactada em segundo plano — clique em Atualizar quando a opção ficar disponível. Seu ambiente de execução atual continua como está.',
+      'O Work4You baixa a atualização do app em segundo plano. Quando estiver pronta, escolha Reiniciar para concluir.',
     updateNow: 'Atualizar agora',
+    availableBodyMacInstaller:
+      'O Work4You baixa a atualização em segundo plano. Quando estiver pronta, abra o instalador, encerre o Work4You, arraste-o para Aplicativos e abra-o novamente.',
+    openInstaller: 'Abrir instalador',
+    preparingDownload: 'Baixando',
+    retryDownload: 'Tentar baixar novamente',
+    manualInstallTitle: 'Concluir atualização',
+    manualInstallBody:
+      'Encerre o Work4You, arraste o novo app para Aplicativos na janela do instalador e abra o Work4You novamente.',
+    completedTitle: 'Atualização concluída',
+    completedBody: 'O Work4You reiniciou e o app atualizado está pronto.',
+    reviewFailure: 'Revisar atualização',
+    showInstaller: 'Mostrar instalador',
+    showPreviousInstaller: 'Mostrar instalador anterior',
+    recoveryUnavailable: 'O instalador salvo não está mais disponível. Baixe o Work4You novamente pelo site oficial.',
     restartToFinish: 'Reiniciar para concluir',
     maybeLater: 'Mais tarde',
     moreChanges: count =>
@@ -4410,7 +4424,7 @@ export const pt = defineLocale({
       'O backend remoto está aplicando a atualização e vai reiniciar. O Work4You se reconecta automaticamente quando ele voltar.',
     applyingClose: 'Esta janela vai fechar durante a atualização e, depois, o Work4You reabre sozinho.',
     errorTitle: 'A atualização não terminou',
-    errorBody: 'Não se preocupe — nada foi perdido. Você pode tentar novamente agora.',
+    errorBody: 'A atualização não foi concluída. Confira a mensagem e tente novamente.',
     blockerTitle: 'Fechar as visualizações locais para atualizar o Work4You?',
     blockerBody:
       'O Work4You precisa parar estas visualizações locais antes de atualizar. Isso não altera nem exclui seus arquivos.',

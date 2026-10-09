@@ -418,9 +418,12 @@ def _print_python_dependencies(manifest: dict, console) -> None:
     )
     for dep in deps:
         console.print(f"  - {dep}")
+    from work4you_cli.managed_runtime import extension_install_command
+
+    command = extension_install_command(deps) or f"pip install {' '.join(repr(d) for d in deps)}"
     console.print(
         "[dim]Install them yourself if needed: "
-        f"pip install {' '.join(repr(d) for d in deps)}[/dim]\n"
+        f"{command}[/dim]\n"
     )
 
 

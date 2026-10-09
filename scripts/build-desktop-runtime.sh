@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Build the prebuilt macOS / POSIX desktop runtime for extraResources.
-# Filters the runtime allowlist, installs portable CPython via uv, creates a
-# venv, runs `uv sync --extra all --locked`, ships portable Node + rg + uv,
-# then relocates the tree to a temp HOME and probes `import work4you_cli`.
+# Builds the complete app-owned runtime: portable Python with locked packages,
+# precompiled interfaces, Node, core tools, browser and computer-use. The
+# relocated payload is verified in place; installation never copies it to HOME.
 
 set -euo pipefail
 
 REPO_ROOT=""
 OUT_DIR=""
 PYTHON_VERSION="3.11"
-NODE_FULL_VERSION="22.20.0"
+NODE_FULL_VERSION="22.22.0"
 RIPGREP_VERSION="14.1.1"
 ZIP_OUT=""
 SKIP_RELOCATE_TEST=0
@@ -172,33 +172,12 @@ PYTHON_HOME="$OUT_DIR/python"
 NODE_HOME="$OUT_DIR/node"
 
 echo "[runtime] copying allowlist from $REPO_ROOT"
-python3 - "$REPO_ROOT" "$PAYLOAD_ROOT" <<'PY'
-import shutil
-import sys
-from pathlib import Path
-
-sys.path.insert(0, sys.argv[1])
-from work4you_cli.runtime_payload import is_runtime_payload_path
-
-root = Path(sys.argv[1])
-dest_root = Path(sys.argv[2])
-for path in root.rglob("*"):
-    if not path.is_file():
-        continue
-    try:
-        rel = path.relative_to(root).as_posix()
-    except ValueError:
-        continue
-    if not is_runtime_payload_path(rel):
-        continue
-    dest = dest_root / rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(path, dest)
-PY
+python3 "$REPO_ROOT/scripts/ci/prepare_desktop_runtime.py" payload \
+  --runtime-dir "$OUT_DIR" --repo-root "$REPO_ROOT"
 
 echo "[runtime] installing CPython $PYTHON_VERSION"
 "$UV_CMD" python install "$PYTHON_VERSION"
-FOUND_PYTHON="$("$UV_CMD" python find "$PYTHON_VERSION" | tr -d '\r')"
+FOUND_PYTHON="$("$UV_CMD" python find --managed-python --no-project "$PYTHON_VERSION" | tr -d '\r')"
 if [ -z "$FOUND_PYTHON" ] || [ ! -x "$FOUND_PYTHON" ]; then
   echo "uv python find $PYTHON_VERSION failed" >&2
   exit 1
@@ -220,16 +199,11 @@ if [ ! -x "$BUNDLE_PYTHON" ]; then
   exit 1
 fi
 
-echo "[runtime] creating venv + sync --extra all --locked"
-VENV_DIR="$PAYLOAD_ROOT/venv"
-export UV_PROJECT_ENVIRONMENT="$VENV_DIR"
-export VIRTUAL_ENV="$VENV_DIR"
-export UV_PYTHON="$BUNDLE_PYTHON"
-(
-  cd "$PAYLOAD_ROOT"
-  "$UV_CMD" venv "$VENV_DIR" --python "$BUNDLE_PYTHON"
-  "$UV_CMD" sync --extra all --locked
-)
+echo "[runtime] installing locked dependencies into portable Python"
+python3 "$REPO_ROOT/scripts/ci/prepare_desktop_runtime.py" python \
+  --runtime-dir "$OUT_DIR" --repo-root "$REPO_ROOT" --uv "$UV_CMD"
+python3 "$REPO_ROOT/scripts/ci/prepare_desktop_runtime.py" interfaces \
+  --runtime-dir "$OUT_DIR" --repo-root "$REPO_ROOT"
 
 cp -a "$UV_CMD" "$OUT_DIR/bin/uv"
 
@@ -281,11 +255,13 @@ if [ -z "$RG_EXE" ]; then
 fi
 cp -a "$RG_EXE" "$OUT_DIR/bin/rg"
 
-cp -a "$REPO_ROOT/scripts/deploy-desktop-runtime.sh" "$OUT_DIR/deploy-desktop-runtime.sh"
-if [ -f "$REPO_ROOT/scripts/deploy-desktop-runtime.ps1" ]; then
-  cp -a "$REPO_ROOT/scripts/deploy-desktop-runtime.ps1" "$OUT_DIR/deploy-desktop-runtime.ps1"
-fi
-chmod +x "$OUT_DIR/deploy-desktop-runtime.sh"
+echo "[runtime] preparing standard browser and computer-use"
+python3 "$REPO_ROOT/scripts/ci/build-desktop-capabilities.py" \
+  --runtime-dir "$OUT_DIR" --repo-root "$REPO_ROOT" --uv "$UV_CMD"
+python3 "$REPO_ROOT/scripts/ci/build-desktop-core-tools.py" \
+  --runtime-dir "$OUT_DIR" --repo-root "$REPO_ROOT"
+python3 "$REPO_ROOT/scripts/ci/build-desktop-voice.py" \
+  --runtime-dir "$OUT_DIR" --repo-root "$REPO_ROOT"
 
 COMMIT="${GITHUB_SHA:-}"
 if [ -z "$COMMIT" ]; then
@@ -319,24 +295,14 @@ payload = {
 Path("""$OUT_DIR/manifest.json""").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 PY
 
-echo "[runtime] rewriting payload symlinks"
-rewrite_payload_symlinks "$OUT_DIR"
+echo "[runtime] finalizing app-owned runtime"
+python3 "$REPO_ROOT/scripts/ci/prepare_desktop_runtime.py" finalize \
+  --runtime-dir "$OUT_DIR" --repo-root "$REPO_ROOT"
 
 if [ "$SKIP_RELOCATE_TEST" -eq 0 ]; then
-  echo "[runtime] relocate self-test"
-  TEST_HOME="${TMPDIR:-/tmp}/work4you-runtime-relocate-$$"
-  rm -rf "$TEST_HOME"
-  bash "$REPO_ROOT/scripts/deploy-desktop-runtime.sh" \
-    --bundle-dir "$OUT_DIR" \
-    --work4you-home "$TEST_HOME" \
-    --pinned-commit "$COMMIT" \
-    --pinned-branch "$BRANCH"
-  PROBE="$TEST_HOME/work4you/venv/bin/python"
-  if [ ! -x "$PROBE" ]; then
-    PROBE="$TEST_HOME/work4you/venv/bin/python3"
-  fi
-  PYTHONPATH="$TEST_HOME/work4you" "$PROBE" -c "import work4you_cli"
-  rm -rf "$TEST_HOME"
+  echo "[runtime] verifying relocated runtime without deployment"
+  python3 "$REPO_ROOT/scripts/ci/prepare_desktop_runtime.py" verify \
+    --runtime-dir "$OUT_DIR" --repo-root "$REPO_ROOT"
 fi
 
 write_runtime_zip
