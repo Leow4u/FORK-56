@@ -101,6 +101,19 @@ import sys
 from pathlib import Path
 from faster_whisper import WhisperModel
 WhisperModel(sys.argv[1], device='cpu', compute_type='int8', local_files_only=True)
+if sys.platform == 'darwin':
+    # macOS uses LiteRT for wake-word inference. A consistent dependency graph
+    # alone does not prove that its native interpreter can load our models.
+    from ai_edge_litert.interpreter import Interpreter
+    root = Path(sys.argv[2])
+    for model in (
+        root / 'voice/wake/melspectrogram.tflite',
+        root / 'voice/wake/embedding_model.tflite',
+        root / 'work4you/tools/wakewords/hey_work4you.tflite',
+    ):
+        interpreter = Interpreter(model_path=str(model), num_threads=1)
+        interpreter.allocate_tensors()
+    print('Native macOS wake-word interpreter loaded all bundled TFLite models')
 if sys.platform == 'win32':
     import ctypes
     from ctypes import wintypes

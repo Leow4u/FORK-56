@@ -164,6 +164,9 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # applied by the caller instead.
     "wake.openwakeword.tflite": (
         "ai-edge-litert==2.1.6",
+        # LiteRT requires the backport even when it uses enum.StrEnum;
+        # backports.strenum 1.3.1 excludes our supported Python 3.11+.
+        "backports-strenum==1.2.8",
     ),
     "wake.openwakeword": (
         "openwakeword==0.6.0",
