@@ -9,8 +9,12 @@ on:
       - scripts/ci/prepare-nsis-benchmark.*
       - scripts/ci/benchmark_nsis_install.py
       - scripts/ci/probe-nsis-unzip.*
+      - scripts/ci/probe-nsis-direct-extraction.*
+      - scripts/ci/patch-nsis-direct-extraction.*
       - tests-js/nsis-benchmark.test.ts
       - tests-js/nsis-unzip-probe.test.ts
+      - tests-js/nsis-direct-extraction.test.ts
+      - tests-js/nsis-direct-extraction-probe.test.ts
       - tests/ci/test_nsis_benchmark.py
   workflow_dispatch:
     inputs:
@@ -18,12 +22,17 @@ on:
         description: Signed desktop-v release to repackage (empty resolves Latest once)
         type: string
         default: ''
+      candidate:
+        description: Alternative extraction path to compare with the current installer
+        type: choice
+        options: [7z-direct, zip]
+        default: 7z-direct
 
 permissions:
   contents: read
 
 concurrency:
-  group: windows-installer-benchmark-${{ github.ref }}
+  group: windows-installer-benchmark-${{ github.ref }}-${{ inputs.candidate || '7z-direct' }}
   cancel-in-progress: true
 
 jobs:
@@ -34,6 +43,7 @@ jobs:
       commit: ${{ steps.release.outputs.commit }}
       asset: ${{ steps.release.outputs.windows_asset }}
       sha256: ${{ steps.release.outputs.windows_sha256 }}
+      candidate: ${{ inputs.candidate || '7z-direct' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Pin source release
@@ -65,9 +75,9 @@ jobs:
       matrix:
         include:
           - name: baseline-first
-            order: 7z,zip
-          - name: zip-first
-            order: zip,7z
+            first: baseline
+          - name: candidate-first
+            first: candidate
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -92,16 +102,20 @@ jobs:
           git fetch --no-tags --depth=1 origin "$SOURCE_COMMIT"
       - name: Verify source signature
         run: python -c "import sys; from pathlib import Path; sys.path.insert(0, 'scripts/ci'); from sign_windows_esigner import verify_authenticode; verify_authenticode(Path(sys.argv[1]))" dist/Work4You-Source.exe
-      - name: Repackage identical app files as 7z and ZIP
+      - name: Repackage identical app files with both extraction paths
         env:
           SOURCE_COMMIT: ${{ needs.resolve.outputs.commit }}
           SOURCE_SHA256: ${{ needs.resolve.outputs.sha256 }}
+          BENCHMARK_CANDIDATE: ${{ needs.resolve.outputs.candidate }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: node scripts/ci/prepare-nsis-benchmark.mjs --installer dist/Work4You-Source.exe --sha256 "$env:SOURCE_SHA256" --commit "$env:SOURCE_COMMIT" --out benchmark-output
+        run: node scripts/ci/prepare-nsis-benchmark.mjs --installer dist/Work4You-Source.exe --sha256 "$env:SOURCE_SHA256" --commit "$env:SOURCE_COMMIT" --candidate "$env:BENCHMARK_CANDIDATE" --out benchmark-output
       - name: Measure installation and reinstall with real backend verification
         env:
-          BENCHMARK_ORDER: ${{ matrix.order }}
-        run: python scripts/ci/benchmark_nsis_install.py --manifest benchmark-output/benchmark-manifest.json --order "$env:BENCHMARK_ORDER" --out-dir benchmark-output/reports
+          BENCHMARK_CANDIDATE: ${{ needs.resolve.outputs.candidate }}
+          BENCHMARK_FIRST: ${{ matrix.first }}
+        run: |
+          $order = if ($env:BENCHMARK_FIRST -eq 'baseline') { "7z,$env:BENCHMARK_CANDIDATE" } else { "$env:BENCHMARK_CANDIDATE,7z" }
+          python scripts/ci/benchmark_nsis_install.py --manifest benchmark-output/benchmark-manifest.json --order "$order" --out-dir benchmark-output/reports
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
@@ -112,8 +126,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  unzip-behavior:
-    name: Measure ZIP extraction failure behavior
+  extraction-behavior:
+    name: Measure extraction failure behavior
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -127,15 +141,23 @@ jobs:
           python-version: '3.11'
       - run: npm i -g npm@12
       - run: npm ci
-      - name: Probe the actual NSIS ZIP macro and plugin
-        run: node scripts/ci/probe-nsis-unzip.mjs --out "$env:RUNNER_TEMP/nsis-unzip-probe"
+      - name: Probe the candidate extraction path
+        env:
+          BENCHMARK_CANDIDATE: ${{ inputs.candidate || '7z-direct' }}
+        run: |
+          if ($env:BENCHMARK_CANDIDATE -eq 'zip') {
+            node scripts/ci/probe-nsis-unzip.mjs --out "$env:RUNNER_TEMP/nsis-extraction-probe"
+          } else {
+            node scripts/ci/probe-nsis-direct-extraction.mjs --out "$env:RUNNER_TEMP/nsis-extraction-probe"
+          }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: nsis-unzip-behavior
+          name: nsis-extraction-behavior
           path: |
-            ${{ runner.temp }}/nsis-unzip-probe/report.json
-            ${{ runner.temp }}/nsis-unzip-probe/*.log
-            ${{ runner.temp }}/nsis-unzip-probe/*.nsi
+            ${{ runner.temp }}/nsis-extraction-probe/report.json
+            ${{ runner.temp }}/nsis-extraction-probe/**/*.log
+            ${{ runner.temp }}/nsis-extraction-probe/**/*.nsi
+            ${{ runner.temp }}/nsis-extraction-probe/**/*.attempts
           if-no-files-found: warn
           retention-days: 7

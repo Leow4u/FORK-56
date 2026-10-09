@@ -13,7 +13,7 @@ import { parseArgs } from 'node:util'
 const require = createRequire(import.meta.url)
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
-const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
+export const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 async function waitForClose(closed, milliseconds) {
   let timer
@@ -47,12 +47,12 @@ export function assessResults(cases) {
   return { conclusive, readyForProduction }
 }
 
-function nsisString(value) {
+export function nsisString(value) {
   assert(!/[\r\n\0]/.test(value), 'NSIS paths cannot contain line breaks')
   return value.replaceAll('$', () => '$$').replaceAll('"', () => '$\\"')
 }
 
-function run(command, args, options = {}) {
+export function run(command, args, options = {}) {
   const result = spawnSync(command, args, { encoding: 'utf8', windowsHide: true,
     timeout: 120_000, maxBuffer: 1024 * 1024, ...options })
   if (result.error || result.status !== 0) {
@@ -63,7 +63,7 @@ function run(command, args, options = {}) {
 
 // Python's standard library supplies ZIP, Win32 exclusive handles and window
 // metadata. It never installs packages or changes an ACL/registry setting.
-const pythonHelper = String.raw`
+export const pythonHelper = String.raw`
 import ctypes, json, os, pathlib, sys, time, zipfile
 from ctypes import wintypes
 
@@ -127,20 +127,22 @@ else:
     raise ValueError(command)
 `
 
-function compileHarness({ output, archive, template, plugins, compiler }) {
+export function compileHarness({ output, archive, template, plugins, compiler, format = 'zip', extraScript = '' }) {
+  assert(format === 'zip' || format === '7z', 'Unknown probe archive format')
   const executable = path.join(output, 'probe.exe')
   const source = path.join(output, 'probe.nsi')
   fs.writeFileSync(source, `Unicode true
 SilentInstall silent
 RequestExecutionLevel user
-Name "NSIS ZIP extraction probe"
+Name "NSIS ${format === 'zip' ? 'ZIP' : format} extraction probe"
 OutFile "${nsisString(executable)}"
 LoadLanguageFile "\${NSISDIR}\\Contrib\\Language files\\English.nlf"
 !include "LogicLib.nsh"
 !addplugindir /x86-unicode "${nsisString(plugins)}"
-!define ZIP_COMPRESSION
+${format === 'zip' ? '!define ZIP_COMPRESSION' : ''}
+${extraScript}
 !include "${nsisString(template)}"
-LangString decompressionFailed 1033 "NSIS ZIP probe extraction failed:"
+LangString decompressionFailed 1033 "NSIS ${format === 'zip' ? 'ZIP' : format} probe extraction failed:"
 Var packageArch
 Var completionMarker
 Section
@@ -148,7 +150,7 @@ Section
   ReadEnvStr $INSTDIR WORK4YOU_NSIS_PROBE_DEST
   ReadEnvStr $completionMarker WORK4YOU_NSIS_PROBE_MARKER
   SetOutPath $INSTDIR
-  File /oname=$PLUGINSDIR\\app-64.zip "${nsisString(archive)}"
+  File /oname=$PLUGINSDIR\\app-64.${format} "${nsisString(archive)}"
   StrCpy $packageArch "64"
   !insertmacro decompress
   FileOpen $0 "$completionMarker" w
@@ -178,7 +180,7 @@ SectionEnd
   return executable
 }
 
-async function observeInstaller(executable, destination, marker, python, helper, timeoutMs) {
+export async function observeInstaller(executable, destination, marker, python, helper, timeoutMs) {
   const started = performance.now()
   const child = spawn(executable, ['/S'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, WORK4YOU_NSIS_PROBE_DEST: destination, WORK4YOU_NSIS_PROBE_MARKER: marker } })
@@ -214,7 +216,7 @@ async function observeInstaller(executable, destination, marker, python, helper,
     dialogs, dialogError, termination, stdout, stderr, harnessError }
 }
 
-async function holdFile(python, helper, file, directory) {
+export async function holdFile(python, helper, file, directory) {
   const ready = path.join(directory, 'lock-ready.json'), release = path.join(directory, 'release-lock')
   const child = spawn(python, ['-X', 'utf8', helper, 'lock', file, ready, release], {
     windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'],

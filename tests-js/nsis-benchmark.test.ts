@@ -58,9 +58,14 @@ test('arguments require pinned source identities and unique known options', () =
   const parsed = parseArgs(args)
   assert.equal(parsed.installer, path.resolve('release with spaces.exe'))
   assert.equal(parsed.out, path.resolve('benchmark'))
+  assert.equal(parsed.candidate, '7z-direct')
+  assert.equal(parseArgs([...args, '--candidate', 'zip']).candidate, 'zip')
+  assert.equal(parseArgs([...args, '--candidate', '7z-direct']).candidate, '7z-direct')
 
   for (const invalid of [args.slice(0, 6), [...args, '--commit', 'b'.repeat(40)],
-    [...args, '--unknown', 'value'], ['--installer', 'x', '--sha256', 'short', '--commit', 'b'.repeat(40), '--out', 'x']]) {
+    [...args, '--unknown', 'value'], [...args, '--candidate', '7z'],
+    [...args, '--candidate', 'zip', '--candidate', '7z-direct'],
+    ['--installer', 'x', '--sha256', 'short', '--commit', 'b'.repeat(40), '--out', 'x']]) {
     assert.throws(() => parseArgs(invalid))
   }
 })
@@ -71,14 +76,17 @@ test('variants preserve normal NSIS settings, source version and payload while d
   const common = { output: temporary(), version: '0.0.256' }
   const baseline = benchmarkConfig(original, { ...common, variant: '7z' })
   const candidate = benchmarkConfig(original, { ...common, variant: 'zip' })
+  const direct = benchmarkConfig(original, { ...common, variant: '7z-direct' })
   assert.deepEqual(original, snapshot)
   assert.deepEqual(baseline.nsis, { ...original.nsis, useZip: false, differentialPackage: true })
   assert.deepEqual(candidate.nsis, { ...original.nsis, useZip: true, differentialPackage: false })
+  assert.deepEqual(direct.nsis, baseline.nsis)
+  assert.equal(direct.artifactName, 'Work4You-Benchmark-7z-direct.exe')
   assert.deepEqual(candidate.extraResources, original.extraResources)
   assert.equal(candidate.extraMetadata.version, common.version)
   assert.equal(baseline.extraMetadata.version, common.version)
 
-  for (const config of [baseline, candidate]) {
+  for (const config of [baseline, candidate, direct]) {
     for (const hook of ['beforeBuild', 'beforePack', 'afterPack', 'afterSign', 'afterAllArtifactBuild']) {assert.equal(config[hook], null)}
     assert.equal(config.win.signExecutable, false)
     assert.equal(config.publish, null)

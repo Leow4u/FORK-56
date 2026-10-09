@@ -32,8 +32,8 @@ def sha256_file(path: Path) -> str:
 
 def parse_order(value: str) -> list[str]:
     order = value.split(",")
-    if len(order) != 2 or set(order) != {"7z", "zip"}:
-        raise ValueError("Order must be 7z,zip or zip,7z, each variant exactly once")
+    if len(order) != 2 or set(order) not in ({"7z", "zip"}, {"7z", "7z-direct"}):
+        raise ValueError("Order must contain baseline 7z and one candidate (zip or 7z-direct), each exactly once")
     return order
 
 
@@ -75,7 +75,7 @@ def validate_inventory(inventory: list[dict]) -> None:
 
 def load_inputs(path: Path) -> tuple[dict, list[dict], dict[str, Path]]:
     manifest = json.loads(path.read_text(encoding="utf-8"))
-    if manifest["schemaVersion"] != 1 or set(manifest["variants"]) != {"7z", "zip"}:
+    if manifest["schemaVersion"] != 1 or set(manifest["variants"]) not in ({"7z", "zip"}, {"7z", "7z-direct"}):
         raise ValueError("Unsupported benchmark manifest")
     if not re.fullmatch(r"[0-9a-f]{40}", manifest["source"]["commit"]):
         raise ValueError("Source must identify the full release commit")
@@ -104,10 +104,10 @@ def load_inputs(path: Path) -> tuple[dict, list[dict], dict[str, Path]]:
         if (installer.stat().st_size != variant["bytes"]
                 or sha256_file(installer) != variant["sha256"]):
             raise ValueError(f"{name} installer differs from its recorded identity")
-        if variant["useZip"] is not (name == "zip") or variant["differentialPackage"] is not (name == "7z"):
+        if variant["useZip"] is not (name == "zip") or variant["differentialPackage"] is not (name != "zip"):
             raise ValueError("Variant compression settings are inconsistent")
         variants[name] = installer
-    if variants["7z"] == variants["zip"]:
+    if len(set(variants.values())) != 2:
         raise ValueError("Variants must be separate installers")
     return manifest, inventory, variants
 
@@ -280,6 +280,8 @@ def benchmark(manifest_path: Path, order: list[str], output: Path) -> dict:
     progress.save(report)
     try:
         manifest, inventory, paths = load_inputs(manifest_path.resolve())
+        if set(parse_order(",".join(order))) != set(paths):
+            raise ValueError("Requested order does not match the manifest's candidate")
         report.update(source=manifest["source"], payload=manifest["payload"], product=manifest["product"])
         if registry_entries(manifest["product"]):
             raise RuntimeError("Existing product installation detected; use a fresh disposable Windows runner")
@@ -345,7 +347,8 @@ def benchmark(manifest_path: Path, order: list[str], output: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", required=True, type=Path)
-    parser.add_argument("--order", required=True, choices=("7z,zip", "zip,7z"))
+    parser.add_argument("--order", required=True,
+                        choices=("7z,zip", "zip,7z", "7z,7z-direct", "7z-direct,7z"))
     parser.add_argument("--out-dir", required=True, type=Path)
     args = parser.parse_args()
     return 0 if benchmark(args.manifest, parse_order(args.order), args.out_dir)["success"] else 1

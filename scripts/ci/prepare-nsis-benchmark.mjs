@@ -18,15 +18,17 @@ export function parseArgs(argv) {
   const result = {}
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index]?.replace(/^--/, '')
-    assert(['installer', 'sha256', 'commit', 'out'].includes(key) && argv[index] === `--${key}` &&
-      argv[index + 1] && !argv[index + 1].startsWith('--') && !(key in result), 'Expected unique --installer, --sha256, --commit and --out arguments')
+    assert(['installer', 'sha256', 'commit', 'out', 'candidate'].includes(key) && argv[index] === `--${key}` &&
+      argv[index + 1] && !argv[index + 1].startsWith('--') && !(key in result), 'Expected unique --installer, --sha256, --commit, --out and optional --candidate arguments')
     result[key] = argv[index + 1]
   }
   assert(/^[a-f0-9]{64}$/i.test(result.sha256 ?? ''), '--sha256 must be a complete SHA-256')
   assert(/^[a-f0-9]{40}$/i.test(result.commit ?? ''), '--commit must be a complete source commit')
   assert(result.installer && result.out, '--installer and --out are required')
+  const candidate = result.candidate ?? '7z-direct'
+  assert(candidate === '7z-direct' || candidate === 'zip', '--candidate must be 7z-direct or zip')
   return { installer: path.resolve(result.installer), sha256: result.sha256.toLowerCase(),
-    commit: result.commit.toLowerCase(), out: path.resolve(result.out) }
+    commit: result.commit.toLowerCase(), out: path.resolve(result.out), candidate }
 }
 
 export async function hashFile(filename) {
@@ -111,7 +113,7 @@ export function archiveEntries(listing) {
 }
 
 export function benchmarkConfig(original, { variant, output, version }) {
-  assert(variant === '7z' || variant === 'zip', 'Unknown benchmark variant')
+  assert(['7z', '7z-direct', 'zip'].includes(variant), 'Unknown benchmark variant')
   assert(/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version), 'Packaged application version is invalid')
   const config = structuredClone(original)
   for (const hook of HOOKS) config[hook] = null
@@ -125,7 +127,7 @@ export function benchmarkConfig(original, { variant, output, version }) {
   config.artifactName = `Work4You-Benchmark-${variant}.exe`
   config.win = { ...config.win, target: ['nsis'], signAndEditExecutable: false, signExecutable: false,
     azureSignOptions: null, signtoolOptions: { publisherName: null } }
-  config.nsis = { ...config.nsis, useZip: variant === 'zip', differentialPackage: variant === '7z' }
+  config.nsis = { ...config.nsis, useZip: variant === 'zip', differentialPackage: variant !== 'zip' }
   return config
 }
 
@@ -190,6 +192,8 @@ async function extractPayload(tool, installer, out, precompressed) {
 
 export async function prepareBenchmark(options) {
   assert.equal(process.platform, 'win32', 'Prepare this benchmark on a native Windows runner')
+  const candidate = options.candidate ?? '7z-direct'
+  assert(candidate === '7z-direct' || candidate === 'zip', 'Unknown benchmark candidate')
   assert.equal(await hashFile(options.installer), options.sha256, 'Release installer SHA-256 mismatch')
   execFileSync('git', ['diff', '--quiet', options.commit, '--', ...SOURCE_CONFIG_PATHS], { cwd: REPO })
   // Refuse an existing output directory: no stale payloads and no deleting user files.
@@ -208,6 +212,9 @@ export async function prepareBenchmark(options) {
     if (/^(?:WIN_)?CSC_/.test(key) || /^ELECTRON_BUILDER_(?:7ZIP_PATH|COMPRESSION_LEVEL|7Z_FILTER)$/.test(key)) delete process.env[key]
   }
   process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+  const { applyNsisDirectExtractionPatch, restoreNsisDirectExtractionPatch, verifyNsisBaselineTemplate } =
+    await import('./patch-nsis-direct-extraction.mjs')
+  const nsisTemplate = verifyNsisBaselineTemplate()
   const { getPath7za } = await import('app-builder-lib/out/toolsets/7zip.js')
   const { build, Platform, Arch } = await import('electron-builder')
   const { extractFile } = await import('@electron/asar')
@@ -233,15 +240,24 @@ export async function prepareBenchmark(options) {
       uninstallRegistryKey: `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${guid.replace(/\\/g, ' - ')}` },
     payload: { root: app, inventoryPath, inventoryRelativePath: 'payload-inventory.json',
       fingerprintSha256: before.fingerprintSha256, files: before.files.length, totalBytes: before.totalBytes },
-    tools: { extraction: extractionTool, packaging: { path: packagingTool, sha256: await hashFile(packagingTool) } },
+    tools: { extraction: extractionTool, packaging: { path: packagingTool, sha256: await hashFile(packagingTool) }, nsisTemplate },
     variants: {} }
-  for (const variant of ['7z', 'zip']) {
+  for (const variant of ['7z', candidate]) {
     const output = path.join(options.out, variant)
     const config = benchmarkConfig(original, { variant, output, version: metadata.version })
     const started = performance.now()
     console.log(`Packaging ${variant} from verified release ${options.commit} (${metadata.version})`)
-    await build({ projectDir: DESKTOP, prepackaged: app, publish: 'never',
-      targets: Platform.WINDOWS.createTarget('nsis', Arch.x64), config })
+    let extractionPatch
+    try {
+      if (variant === '7z-direct') {
+        extractionPatch = await applyNsisDirectExtractionPatch({ sevenZipPath: packagingTool })
+        assert.equal(extractionPatch.alreadyApplied, false, 'Direct extraction patch was already active before this candidate')
+      }
+      await build({ projectDir: DESKTOP, prepackaged: app, publish: 'never',
+        targets: Platform.WINDOWS.createTarget('nsis', Arch.x64), config })
+    } finally {
+      if (extractionPatch) await restoreNsisDirectExtractionPatch(extractionPatch)
+    }
     const packagingMs = Math.round(performance.now() - started)
     // Includes elevate.exe: even prepackaged builds may recopy that helper.
     // Fail if its bytes, any other file, or the set of files changed.
@@ -251,6 +267,7 @@ export async function prepareBenchmark(options) {
     result.variants[variant] = { path: filename, relativePath: path.relative(options.out, filename).split(path.sep).join('/'),
       sha256: await hashFile(filename), bytes: fs.statSync(filename).size, packagingMs,
       useZip: config.nsis.useZip, differentialPackage: config.nsis.differentialPackage }
+    if (extractionPatch) result.variants[variant].extractionPatch = extractionPatch
     console.log(JSON.stringify({ variant, ...result.variants[variant] }))
   }
   assert.equal(await hashFile(options.installer), options.sha256, 'Source installer changed during preparation')

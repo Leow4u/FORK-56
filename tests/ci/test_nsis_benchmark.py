@@ -29,18 +29,18 @@ def payload(tmp_path):
     return root, inventory_for(root)
 
 
-@pytest.fixture
-def manifest(tmp_path, payload):
+@pytest.fixture(params=["zip", "7z-direct"])
+def manifest(tmp_path, payload, request):
     _, inventory = payload
     (tmp_path / "payload-inventory.json").write_text(json.dumps(inventory, ensure_ascii=False), encoding="utf-8")
     variants = {}
-    for name in ("7z", "zip"):
+    for name in ("7z", request.param):
         path = tmp_path / name / "Setup.exe"
         path.parent.mkdir()
         path.write_bytes(f"{name} identity fixture, never executed".encode())
         variants[name] = {"relativePath": f"{name}/Setup.exe", "path": "unused build-runner absolute path",
                           "sha256": benchmark.sha256_file(path), "bytes": path.stat().st_size,
-                          "useZip": name == "zip", "differentialPackage": name == "7z"}
+                          "useZip": name == "zip", "differentialPackage": name != "zip"}
     data = {"schemaVersion": 1, "source": {"commit": "a" * 40, "installerSha256": "b" * 64},
             "product": {"appId": "test.app", "productName": "Work4You",
                         "uninstallRegistryKey": "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\"
@@ -54,12 +54,12 @@ def manifest(tmp_path, payload):
     return path, data
 
 
-@pytest.mark.parametrize("order", ["7z,zip", "zip,7z"])
+@pytest.mark.parametrize("order", ["7z,zip", "zip,7z", "7z,7z-direct", "7z-direct,7z"])
 def test_order_uses_each_variant_once(order):
     assert benchmark.parse_order(order) == order.split(",")
 
 
-@pytest.mark.parametrize("order", ["7z", "zip,zip", "7z,zip,7z", "zip,unknown"])
+@pytest.mark.parametrize("order", ["7z", "zip,zip", "7z,zip,7z", "zip,unknown", "zip,7z-direct", "7z-direct,7z-direct"])
 def test_order_rejects_biased_or_incomplete_sequences(order):
     with pytest.raises(ValueError, match="exactly once"):
         benchmark.parse_order(order)
@@ -70,9 +70,32 @@ def test_manifest_uses_portable_paths_and_verifies_actual_artifacts(manifest):
     loaded, inventory, variants = benchmark.load_inputs(path)
     assert loaded == data
     assert benchmark.inventory_fingerprint(inventory) == data["payload"]["fingerprintSha256"]
-    assert variants["zip"] == path.parent / "zip/Setup.exe"
-    variants["zip"].write_bytes(b"tampered installer")
-    with pytest.raises(ValueError, match="zip installer differs"):
+    candidate = next(name for name in variants if name != "7z")
+    assert variants[candidate] == path.parent / candidate / "Setup.exe"
+    variants[candidate].write_bytes(b"tampered installer")
+    with pytest.raises(ValueError, match=f"{candidate} installer differs"):
+        benchmark.load_inputs(path)
+
+
+@pytest.mark.parametrize("invalid", ["missing-baseline", "two-candidates"])
+def test_manifest_rejects_missing_baseline_or_multiple_candidates(manifest, invalid):
+    path, data = manifest
+    if invalid == "missing-baseline":
+        data["variants"].pop("7z")
+    else:
+        other = "zip" if "7z-direct" in data["variants"] else "7z-direct"
+        data["variants"][other] = data["variants"]["7z"]
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ValueError, match="Unsupported benchmark manifest"):
+        benchmark.load_inputs(path)
+
+
+def test_manifest_checks_candidate_compression_contract(manifest):
+    path, data = manifest
+    candidate = next(name for name in data["variants"] if name != "7z")
+    data["variants"][candidate]["differentialPackage"] = not data["variants"][candidate]["differentialPackage"]
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ValueError, match="compression settings"):
         benchmark.load_inputs(path)
 
 
