@@ -112,6 +112,7 @@ jobs:
           name: desktop-install-smoke-inputs
           path: smoke-source/*.json
           if-no-files-found: ignore
+          retention-days: 7
 
   windows-smoke:
     name: Windows install smoke
@@ -187,6 +188,7 @@ jobs:
           name: desktop-install-smoke-windows
           path: install-smoke-windows.*
           if-no-files-found: warn
+          retention-days: 7
 
   macos-smoke:
     name: macOS install smoke
@@ -256,3 +258,4 @@ jobs:
           name: desktop-install-smoke-macos
           path: install-smoke-macos.*
           if-no-files-found: warn
+          retention-days: 7
