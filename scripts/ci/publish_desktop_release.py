@@ -25,9 +25,11 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from urllib.parse import quote
 
 REQUIRED_ASSETS = ("Work4You-Setup.exe", "Work4You.dmg")
 RETRYABLE_MARKERS = (
@@ -219,6 +221,34 @@ def promote_latest(runner: Runner, *, tag: str, repo: str) -> None:
     )
 
 
+def ensure_seven_zip_notice(
+    runner: Runner, *, tag: str, repo: str, source: Path, license: Path,
+) -> None:
+    """Preserve release notes and add the source links once, including rebuilds."""
+    base = f"https://github.com/{repo}/releases/download/{quote(tag, safe='')}"
+    notice = (
+        "The Windows installer includes 7-Zip 24.09, "
+        "Copyright (C) 1999-2024 Igor Pavlov. "
+        f"[Corresponding source]({base}/{quote(source.name)}) and "
+        f"[license notices]({base}/{quote(license.name)}) accompany this release."
+    )
+    _code, stdout, _stderr = run_gh(
+        runner, ["gh", "release", "view", tag, "--repo", repo, "--json", "body"],
+        label=f"read {tag} release notes",
+    )
+    body = json.loads(stdout).get("body") or ""
+    if notice in body:
+        return
+    with tempfile.TemporaryDirectory(prefix="work4you-release-notes-") as directory:
+        notes_file = Path(directory) / "notes.md"
+        notes_file.write_text(f"{body.rstrip()}\n\n{notice}\n", encoding="utf-8")
+        run_gh(
+            runner,
+            ["gh", "release", "edit", tag, "--repo", repo, "--notes-file", str(notes_file)],
+            label=f"add {tag} 7-Zip source notice",
+        )
+
+
 def publish_desktop_release(
     *,
     tag: str,
@@ -232,7 +262,15 @@ def publish_desktop_release(
     update_exe: Path | str | Sequence[Path | str] | None = None,
     chrome_zip: Path | str | Sequence[Path | str] | None = None,
     runtime_fingerprint: Path | str | Sequence[Path | str] | None = None,
+    seven_zip_source: Path | None = None,
+    seven_zip_license: Path | None = None,
 ) -> None:
+    if (seven_zip_source is None) != (seven_zip_license is None):
+        raise PublishError("7-Zip source and license must be provided together")
+    seven_zip_assets = [path for path in (seven_zip_source, seven_zip_license) if path is not None]
+    for path in seven_zip_assets:
+        if not path.is_file():
+            raise PublishError(f"missing 7-Zip release asset {path}")
     title = f"Work4You Desktop {tag.removeprefix('desktop-v')}"
     print(f"Publishing {tag} from {target}")
     ensure_release(
@@ -243,6 +281,10 @@ def publish_desktop_release(
         title=title,
         notes=notes,
     )
+    # A rebuild may already be public: make the source available before
+    # replacing its Windows installer, not only before promoting a new draft.
+    for path in seven_zip_assets:
+        upload_asset(runner, tag=tag, repo=repo, path=path)
     upload_asset(runner, tag=tag, repo=repo, path=exe)
     upload_asset(runner, tag=tag, repo=repo, path=dmg)
     for update_path in normalize_optional_paths(update_exe):
@@ -254,10 +296,15 @@ def publish_desktop_release(
     for fingerprint_path in normalize_optional_paths(runtime_fingerprint):
         upload_asset(runner, tag=tag, repo=repo, path=fingerprint_path)
     names = list_release_assets(runner, tag, repo)
-    if not has_required_assets(names):
+    required = set(REQUIRED_ASSETS) | {path.name for path in seven_zip_assets}
+    if not required <= set(names):
         raise PublishError(
-            f"{tag} is missing required installers after upload "
+            f"{tag} is missing required release assets after upload "
             f"(have {sorted(names)})"
+        )
+    if seven_zip_source is not None and seven_zip_license is not None:
+        ensure_seven_zip_notice(
+            runner, tag=tag, repo=repo, source=seven_zip_source, license=seven_zip_license,
         )
     promote_latest(runner, tag=tag, repo=repo)
     print(f"Published {tag} with {', '.join(REQUIRED_ASSETS)}")
@@ -270,6 +317,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", required=True, help="commit SHA for a new tag")
     parser.add_argument("--exe", required=True, type=Path)
     parser.add_argument("--dmg", required=True, type=Path)
+    parser.add_argument("--seven-zip-source", type=Path, help="Corresponding 7-Zip source archive")
+    parser.add_argument("--seven-zip-license", type=Path, help="Original 7-Zip Extra license notice")
     parser.add_argument(
         "--runtime-zip",
         type=Path,
@@ -336,6 +385,8 @@ def main(argv: list[str] | None = None) -> int:
             update_exe=args.update_exe,
             chrome_zip=args.chrome_zip,
             runtime_fingerprint=args.runtime_fingerprint,
+            seven_zip_source=args.seven_zip_source,
+            seven_zip_license=args.seven_zip_license,
         )
     except PublishError as exc:
         print(f"::error::{exc}", file=sys.stderr)

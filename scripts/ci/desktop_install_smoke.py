@@ -86,7 +86,8 @@ def install(artifact: Path, app_dir: Path, *, signed: bool, env: dict) -> tuple[
     return executable, timings
 
 
-def smoke(args: argparse.Namespace) -> dict:
+def smoke(args: argparse.Namespace, *, after_pass=None) -> dict:
+    """Run native passes; an optional verifier runs after app shutdown, outside timings."""
     if sys.platform not in {"win32", "darwin"}:
         raise RuntimeError("Installer smoke requires a native Windows or macOS runner")
     # All mutable state belongs to a new sandbox. Never remove an existing home.
@@ -132,6 +133,8 @@ def smoke(args: argparse.Namespace) -> dict:
             timings.update(probe["timingsMs"])
             # Explicit sum: hash/signature/fixtures/instrumentation are excluded.
             timings["installToBackendUsable"] = timings["install"] + timings["backendUsable"]
+            if after_pass is not None:
+                entry["payloadIntegrity"] = after_pass(executable, entry)
             entry.update(success=True, timingsMs=timings)
             if index == 0:
                 result["timingsMs"] = timings

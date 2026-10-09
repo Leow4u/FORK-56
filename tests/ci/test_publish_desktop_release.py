@@ -7,6 +7,7 @@ retry policy and the "do not mark Latest until both installers exist" order.
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -364,3 +365,86 @@ def test_missing_chrome_zip_still_promotes_latest(tmp_path):
         runner=runner,
     )
     assert ["release", "edit"] in verbs
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_seven_zip_assets_and_notice_precede_latest_and_preserve_notes(tmp_path, existing):
+    paths = [tmp_path / name for name in (
+        "Work4You-Setup.exe", "Work4You.dmg", "7z2409-src.7z", "7zip-24.09-license.txt",
+    )]
+    for path in paths:
+        path.write_bytes(b"fixture")
+    uploaded = []
+    body = "Existing release notes.\n\nFeatures stay here."
+    original_body = body
+    edits = []
+
+    def runner(args):
+        nonlocal body, existing
+        command = args[1:3]
+        if command == ["release", "view"] and "--json" not in args:
+            return (0, "", "") if existing else (1, "", "not found")
+        if command == ["release", "create"]:
+            assert "--draft" in args
+            existing = True
+            body = args[args.index("--notes") + 1]
+            return 0, "", ""
+        if command == ["release", "upload"]:
+            uploaded.append(Path(args[-2]).name)
+            return 0, "", ""
+        if command == ["release", "view"] and args[-1] == "assets":
+            return 0, json.dumps({"assets": [{"name": name} for name in uploaded]}), ""
+        if command == ["release", "view"] and args[-1] == "body":
+            return 0, json.dumps({"body": body}), ""
+        if command == ["release", "edit"]:
+            assert {path.name for path in paths} <= set(uploaded)
+            if "--notes-file" in args:
+                body = Path(args[args.index("--notes-file") + 1]).read_text(encoding="utf-8")
+                edits.append("notice")
+            else:
+                assert "Corresponding source" in body
+                assert "--latest" in args
+                edits.append("latest")
+            return 0, "", ""
+        raise AssertionError(args)
+
+    for _ in range(2):
+        mod.publish_desktop_release(
+            tag="desktop-v0.0.257", repo="Leow4u/FORK-56", target="abc123",
+            exe=paths[0], dmg=paths[1], notes=original_body, runner=runner,
+            seven_zip_source=paths[2], seven_zip_license=paths[3],
+        )
+    assert body.startswith(original_body)
+    assert body.count("The Windows installer includes 7-Zip 24.09") == 1
+    assert "/releases/download/desktop-v0.0.257/7z2409-src.7z" in body
+    assert "/releases/download/desktop-v0.0.257/7zip-24.09-license.txt" in body
+    assert edits == ["notice", "latest", "latest"]
+    assert uploaded.index(paths[2].name) < uploaded.index(paths[0].name)
+    assert uploaded.index(paths[3].name) < uploaded.index(paths[0].name)
+
+
+@pytest.mark.parametrize("failure", ["upload", "missing_asset"])
+def test_seven_zip_distribution_failure_never_promotes_latest(tmp_path, failure):
+    paths = [tmp_path / name for name in (
+        "Work4You-Setup.exe", "Work4You.dmg", "7z2409-src.7z", "7zip-24.09-license.txt",
+    )]
+    for path in paths:
+        path.write_bytes(b"fixture")
+    calls = []
+
+    def runner(args):
+        calls.append(list(args))
+        if args[1:3] == ["release", "upload"] and Path(args[-2]).name == paths[2].name:
+            if failure == "upload":
+                return 1, "", "HTTP 422: source upload rejected"
+        if args[1:3] == ["release", "view"] and args[-1] == "assets":
+            return 0, json.dumps({"assets": [{"name": path.name} for path in paths[:2]]}), ""
+        return 0, "", ""
+
+    with pytest.raises(mod.PublishError):
+        mod.publish_desktop_release(
+            tag="desktop-v0.0.257", repo="Leow4u/FORK-56", target="abc123",
+            exe=paths[0], dmg=paths[1], notes="notes", runner=runner,
+            seven_zip_source=paths[2], seven_zip_license=paths[3],
+        )
+    assert not any("--latest" in args for args in calls)

@@ -1,0 +1,163 @@
+name: Windows installer benchmark
+
+# Compare packaging of one immutable release payload, without publishing builds.
+# Opposite orders on fresh runners reduce the influence of cache/order effects.
+on:
+  pull_request:
+    paths:
+      - .github/workflows/windows-installer-benchmark.yml
+      - scripts/ci/prepare-nsis-benchmark.*
+      - scripts/ci/benchmark_nsis_install.py
+      - scripts/ci/probe-nsis-unzip.*
+      - scripts/ci/probe-nsis-direct-extraction.*
+      - scripts/ci/patch-nsis-direct-extraction.*
+      - tests-js/nsis-benchmark.test.ts
+      - tests-js/nsis-unzip-probe.test.ts
+      - tests-js/nsis-direct-extraction.test.ts
+      - tests-js/nsis-direct-extraction-probe.test.ts
+      - tests/ci/test_nsis_benchmark.py
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Signed desktop-v release to repackage (empty resolves Latest once)
+        type: string
+        default: ''
+      candidate:
+        description: Alternative extraction path to compare with the current installer
+        type: choice
+        options: [7z-direct, zip]
+        default: 7z-direct
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-installer-benchmark-${{ github.ref }}-${{ inputs.candidate || '7z-direct' }}
+  cancel-in-progress: true
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
+      asset: ${{ steps.release.outputs.windows_asset }}
+      sha256: ${{ steps.release.outputs.windows_sha256 }}
+      candidate: ${{ inputs.candidate || '7z-direct' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Pin source release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TAG" ]; then TAG="$(gh api "repos/$REPO/releases/latest" --jq .tag_name)"; fi
+          [[ "$TAG" =~ ^desktop-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          commit="$(gh api "repos/$REPO/commits/$TAG" --jq .sha)"
+          gh api "repos/$REPO/releases/tags/$TAG" | jq --arg commit "$commit" '. + {smokeCommit: $commit}' > benchmark-source.json
+          python3 scripts/ci/resolve_install_smoke.py benchmark-source.json >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: nsis-benchmark-source
+          path: benchmark-source.json
+          retention-days: 7
+
+  compare:
+    name: Compare NSIS (${{ matrix.name }})
+    needs: resolve
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: baseline-first
+            first: baseline
+          - name: candidate-first
+            first: candidate
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 26
+          cache: npm
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.11'
+      - run: npm i -g npm@12
+      - run: npm ci
+      - name: Download pinned source and fetch its packaging configuration
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ needs.resolve.outputs.asset }}
+          SOURCE_COMMIT: ${{ needs.resolve.outputs.commit }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh api "repos/${{ github.repository }}/releases/assets/$ASSET" -H 'Accept: application/octet-stream' > dist/Work4You-Source.exe
+          git fetch --no-tags --depth=1 origin "$SOURCE_COMMIT"
+      - name: Verify source signature
+        run: python -c "import sys; from pathlib import Path; sys.path.insert(0, 'scripts/ci'); from sign_windows_esigner import verify_authenticode; verify_authenticode(Path(sys.argv[1]))" dist/Work4You-Source.exe
+      - name: Repackage identical app files with both extraction paths
+        env:
+          SOURCE_COMMIT: ${{ needs.resolve.outputs.commit }}
+          SOURCE_SHA256: ${{ needs.resolve.outputs.sha256 }}
+          BENCHMARK_CANDIDATE: ${{ needs.resolve.outputs.candidate }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: node scripts/ci/prepare-nsis-benchmark.mjs --installer dist/Work4You-Source.exe --sha256 "$env:SOURCE_SHA256" --commit "$env:SOURCE_COMMIT" --candidate "$env:BENCHMARK_CANDIDATE" --out benchmark-output
+      - name: Measure installation and reinstall with real backend verification
+        env:
+          BENCHMARK_CANDIDATE: ${{ needs.resolve.outputs.candidate }}
+          BENCHMARK_FIRST: ${{ matrix.first }}
+        run: |
+          $order = if ($env:BENCHMARK_FIRST -eq 'baseline') { "7z,$env:BENCHMARK_CANDIDATE" } else { "$env:BENCHMARK_CANDIDATE,7z" }
+          python scripts/ci/benchmark_nsis_install.py --manifest benchmark-output/benchmark-manifest.json --order "$order" --out-dir benchmark-output/reports
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: nsis-benchmark-${{ matrix.name }}
+          path: |
+            benchmark-output/benchmark-manifest.json
+            benchmark-output/reports/**
+          if-no-files-found: warn
+          retention-days: 7
+
+  extraction-behavior:
+    name: Measure extraction failure behavior
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 26
+          cache: npm
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.11'
+      - run: npm i -g npm@12
+      - run: npm ci
+      - name: Probe the candidate extraction path
+        env:
+          BENCHMARK_CANDIDATE: ${{ inputs.candidate || '7z-direct' }}
+        run: |
+          if ($env:BENCHMARK_CANDIDATE -eq 'zip') {
+            node scripts/ci/probe-nsis-unzip.mjs --out "$env:RUNNER_TEMP/nsis-extraction-probe"
+          } else {
+            node scripts/ci/probe-nsis-direct-extraction.mjs --out "$env:RUNNER_TEMP/nsis-extraction-probe"
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: nsis-extraction-behavior
+          path: |
+            ${{ runner.temp }}/nsis-extraction-probe/report.json
+            ${{ runner.temp }}/nsis-extraction-probe/**/*.log
+            ${{ runner.temp }}/nsis-extraction-probe/**/*.nsi
+            ${{ runner.temp }}/nsis-extraction-probe/**/*.attempts
+          if-no-files-found: warn
+          retention-days: 7
