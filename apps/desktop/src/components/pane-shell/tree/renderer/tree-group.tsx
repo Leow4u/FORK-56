@@ -616,6 +616,10 @@ export function TreeGroup({
                 // first, or the tab opens in whichever zone was last clicked.
                 // (pointerdown's own focus tracking would land after the click
                 // handler reads the anchor.)
+                // `flex`: the glyph centers itself (`self-center`) against
+                // the strip's full height — in a plain span it would sit on
+                // the first line box, hugging the top edge above the tabs.
+                className="flex shrink-0"
                 onPointerDownCapture={() => noteActiveTreeGroup(node.id)}
               >
                 <PaneStripGlyph
@@ -630,7 +634,7 @@ export function TreeGroup({
                 makes THIS zone the interacted one first, so the new tab lands
                 beside this strip's tab rather than wherever the last click was. */}
             {isContentArea && newContentTabAction && !node.minimized && (
-              <span onPointerDownCapture={() => noteActiveTreeGroup(node.id)}>
+              <span className="flex shrink-0" onPointerDownCapture={() => noteActiveTreeGroup(node.id)}>
                 <PaneStripGlyph
                   icon={<Codicon name="add" size="0.8125rem" />}
                   label={t.zones.newTab}
