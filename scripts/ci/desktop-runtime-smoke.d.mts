@@ -7,7 +7,16 @@ export interface RuntimeEvidence {
 }
 
 export function samePath(actual: unknown, expected: string): boolean
-export function validateRuntime(runtime: RuntimeEvidence, expected: { bundle: string; home: string; commit: string }): void
+export function validateRuntime(runtime: RuntimeEvidence, expected: {
+  bundle: string
+  home: string
+  commit: string
+  pythonExecutable: string
+}): void
+export function validateBackendOwnership(ownership: unknown, expected: {
+  electronPid: number
+  pythonExecutable: string
+}): { pid: number; parentPid: number; command: string }
 export function seedData(home: string): void
 export function verifyPreservedFiles(home: string): void
 export function probe(options: {
