@@ -58,6 +58,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Make room for the Nix build
+        # Nix provides its own toolchains. These unused SDKs on the hosted
+        # Ubuntu image compete with the restored store and concurrent npm
+        # builds, which can otherwise fill the runner's root filesystem.
+        run: |
+          df -h /
+          df -i /
+          sudo rm -rf -- /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+          df -i /
+
       - name: Install Nix
         uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
         with:
@@ -115,3 +126,9 @@ jobs:
         # --print-build-logs: a check that fails then prints the assertion
         # that failed, and not only the derivation that failed to build.
         run: nix flake check --print-build-logs
+
+      - name: Report remaining runner disk space
+        if: always()
+        run: |
+          df -h /
+          df -i /
