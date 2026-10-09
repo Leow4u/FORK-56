@@ -14,21 +14,63 @@ const preservedFiles = {
   'memories/MEMORY.md': `${SENTINEL}\n`
 }
 
-export function samePath(actual, expected) {
-  const normalize = value => {
-    const resolved = path.resolve(value)
+function canonicalPath(value) {
+  if (typeof value !== 'string' || !value) return null
+  try {
+    const resolved = fs.realpathSync.native(value)
     return process.platform === 'win32' ? resolved.toLowerCase() : resolved
+  } catch {
+    return null
   }
-  return typeof actual === 'string' && normalize(actual) === normalize(expected)
 }
 
-export function validateRuntime(runtime, { bundle, home, commit }) {
+export function samePath(actual, expected) {
+  const resolved = canonicalPath(actual)
+  return resolved !== null && resolved === canonicalPath(expected)
+}
+
+function pathEvidence(actual, expected) {
+  // Explicit path fields only: never serialize connection descriptors or commands.
+  return JSON.stringify({ actual: typeof actual === 'string' ? actual : null,
+    expected, actualCanonical: canonicalPath(actual), expectedCanonical: canonicalPath(expected) })
+}
+
+function insideExistingDirectory(actual, directory) {
+  const resolved = canonicalPath(actual)
+  const parent = canonicalPath(directory)
+  if (!resolved || !parent) return false
+  const relative = path.relative(parent, resolved)
+  return Boolean(relative && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+}
+
+export function validateRuntime(runtime, { bundle, home, commit, pythonExecutable }) {
   assert.equal(runtime?.layout, 'app-owned', 'backend must use the app-owned runtime')
-  assert(samePath(runtime.root, path.join(bundle, 'work4you')), 'runtime code root differs from installed resources/runtime/work4you')
-  assert(samePath(runtime.work4youHome, home), 'effective data home changed')
-  const relative = path.relative(bundle, runtime.pythonExecutable)
-  assert(relative && !relative.startsWith('..') && !path.isAbsolute(relative), 'Python escaped app runtime')
+  const root = path.join(bundle, 'work4you')
+  assert(samePath(runtime.root, root), `runtime code root differs from installed resources/runtime/work4you: ${pathEvidence(runtime.root, root)}`)
+  assert(insideExistingDirectory(runtime.root, bundle), `runtime code escaped app runtime: ${pathEvidence(runtime.root, bundle)}`)
+  assert(samePath(runtime.work4youHome, home), `effective data home changed: ${pathEvidence(runtime.work4youHome, home)}`)
+  assert(insideExistingDirectory(runtime.pythonExecutable, bundle), `Python escaped app runtime or is missing: ${pathEvidence(runtime.pythonExecutable, bundle)}`)
+  assert(samePath(runtime.pythonExecutable, pythonExecutable), `Python differs from the packaged manifest: ${pathEvidence(runtime.pythonExecutable, pythonExecutable)}`)
   assert.equal(runtime.commit, commit, 'running runtime and packaged commit differ')
+}
+
+export function validateBackendOwnership(ownership, { electronPid, pythonExecutable }) {
+  assert(Number.isInteger(electronPid) && electronPid > 0, 'Electron did not return a valid main process PID')
+  const entries = Array.isArray(ownership?.backends) ? ownership.backends : []
+  const usesPython = entry => {
+    if (typeof entry.command !== 'string') return false
+    const moduleIndex = entry.command.indexOf(' -m work4you_cli.main ')
+    return moduleIndex > 0 && samePath(entry.command.slice(0, moduleIndex), pythonExecutable)
+  }
+  const backend = entries.find(entry => entry.parentPid === electronPid &&
+    Number.isInteger(entry.pid) && entry.pid > 0 && usesPython(entry))
+  const evidence = entries.map(entry => ({
+    pid: Number.isInteger(entry.pid) ? entry.pid : null,
+    parentPid: Number.isInteger(entry.parentPid) ? entry.parentPid : null,
+    packagedPython: usesPython(entry)
+  }))
+  assert(backend, `spawned backend does not match the Electron main process and packaged Python: ${JSON.stringify({ electronPid, expectedPython: pythonExecutable, backends: evidence })}`)
+  return backend
 }
 
 export function verifyPreservedFiles(home) {
@@ -87,6 +129,7 @@ export async function probe({ executable, home, userData, expectedCommit, seedSe
     ? path.resolve(executable, '..', '..', 'Resources') : path.join(path.dirname(executable), 'resources')
   const bundle = path.join(resources, 'runtime')
   const manifest = JSON.parse(fs.readFileSync(path.join(bundle, 'manifest.json'), 'utf8'))
+  const pythonExecutable = path.join(bundle, manifest.pythonExecutable)
   const stamp = JSON.parse(fs.readFileSync(path.join(resources, 'install-stamp.json'), 'utf8'))
   assert.equal(manifest.present, true)
   assert.equal(manifest.layout, 'app-owned')
@@ -94,8 +137,7 @@ export async function probe({ executable, home, userData, expectedCommit, seedSe
   if (expectedCommit) assert.equal(stamp.commit, expectedCommit, 'artifact differs from selected release commit')
   const env = cleanEnvironment(home, userData)
   if (seedSession) {
-    const python = path.join(bundle, manifest.pythonExecutable)
-    execFileSync(python, ['-c', [
+    execFileSync(pythonExecutable, ['-c', [
       'from work4you_state import SessionDB',
       'db = SessionDB()',
       `db.create_session(${JSON.stringify(SESSION_ID)}, "desktop")`,
@@ -122,15 +164,15 @@ export async function probe({ executable, home, userData, expectedCommit, seedSe
     const health = await fetch(`${connection.baseUrl}/api/health`, { signal: AbortSignal.timeout(15_000) }).then(r => r.json())
     assert.equal(health.ok, true, 'packaged backend health failed')
     const version = await page.evaluate(() => window.work4youDesktop.getVersion())
-    validateRuntime(version.runtime, { bundle, home, commit: stamp.commit })
+    validateRuntime(version.runtime, { bundle, home, commit: stamp.commit, pythonExecutable })
     // Cross-check provenance against Electron's persisted *spawn* record, not
     // only the runtime advertised by getVersion(). The sandbox has no prior
     // ownership records, and the parent must be the app launched by this probe.
+    // On Windows Playwright launches through cmd.exe, so app.process().pid is
+    // the wrapper's PID. Read the actual Electron main process over its debugger.
+    const electronPid = await app.evaluate(() => process.pid)
     const ownership = JSON.parse(fs.readFileSync(path.join(userData, 'backend-ownership.json'), 'utf8'))
-    const backend = ownership.backends.find(entry => entry.parentPid === app.process().pid &&
-      typeof entry.command === 'string' && entry.command.startsWith(`${version.runtime.pythonExecutable} `) &&
-      entry.command.includes(' -m work4you_cli.main '))
-    assert(backend && Number.isInteger(backend.pid) && backend.pid > 0, 'spawned backend does not use the packaged Python')
+    const backend = validateBackendOwnership(ownership, { electronPid, pythonExecutable })
     process.kill(backend.pid, 0)
     const fresh = await page.evaluate(() => window.work4youDesktop.getGatewayWsUrl())
     const wsUrl = typeof fresh === 'string' ? fresh : fresh.wsUrl
@@ -142,12 +184,12 @@ export async function probe({ executable, home, userData, expectedCommit, seedSe
       ws.addEventListener('error', () => { clearTimeout(timeout); reject(new Error('Gateway WebSocket failed')) }, { once: true })
     })
     const profile = await rpc(ws, 'config.get', { key: 'profile' })
-    assert(samePath(profile.home, home), 'actual backend reads a different data home')
+    assert(samePath(profile.home, home), `actual backend reads a different data home: ${pathEvidence(profile.home, home)}`)
     const sessions = await rpc(ws, 'session.list', { limit: 200 })
     assert(sessions.sessions.some(row => row.id === SESSION_ID && row.title === SENTINEL), 'persisted conversation missing from actual gateway')
     verifyPreservedFiles(home)
     assert(!fs.existsSync(path.join(home, 'work4you', 'venv')), 'installation copied a second runtime into the data home')
-    return { success: true, commit: stamp.commit, runtime: version.runtime, backendPid: backend.pid,
+    return { success: true, commit: stamp.commit, runtime: version.runtime, electronPid, backendPid: backend.pid,
       timingsMs: { windowReady: windowReadyMs, backendUsable: Math.round(performance.now() - started) },
       checks: ['packaged-electron', 'spawned-bundled-python', 'http-health', 'websocket-rpc', 'effective-data-home',
         'persisted-session', 'config-skills-memory-env-preserved'],

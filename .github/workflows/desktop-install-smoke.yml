@@ -1,9 +1,21 @@
 name: Desktop install smoke
 
-# Native, actual packaged Electron/backend measurements. No PR gate and no
-# speed threshold: record install, first window and usable backend separately.
+# Native, actual packaged Electron/backend measurements. Harness changes also
+# exercise the latest signed release on PRs. No speed threshold: record install,
+# first window and usable backend separately.
 # Post-release inputs are the publishing run's immutable asset IDs/commit.
 on:
+  pull_request:
+    paths:
+      - .github/workflows/desktop-install-smoke.yml
+      - scripts/ci/desktop-runtime-smoke.*
+      - scripts/ci/desktop_install_smoke.py
+      - scripts/ci/desktop-install-smoke.ps1
+      - scripts/ci/desktop-install-smoke.sh
+      - scripts/ci/resolve_install_smoke.py
+      - scripts/ci/summarize-install-smoke.py
+      - tests-js/desktop-runtime-smoke.test.ts
+      - tests/ci/test_install_smoke.py
   workflow_dispatch:
     inputs:
       mode:
