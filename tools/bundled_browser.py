@@ -134,7 +134,7 @@ def connect_bundled_browser(env: dict, *, task_id: str | None, session_name: str
                     if process.poll() is not None:
                         raise RuntimeError(f"Chromium exited during startup (exit {process.returncode}).")
                     try:
-                        lines = (directory / "DevToolsActivePort").read_text().splitlines()
+                        lines = (directory / "DevToolsActivePort").read_text(encoding="utf-8").splitlines()
                         port = int(lines[0])
                         if 0 < port < 65536 and len(lines) > 1 and lines[1].startswith("/devtools/browser/"):
                             browser.websocket = f"ws://127.0.0.1:{port}{lines[1]}"

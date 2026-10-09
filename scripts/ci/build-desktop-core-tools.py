@@ -188,7 +188,9 @@ def build_tools(runtime: Path) -> dict:
         wheel = scratch / "ffmpeg.whl"
         download("https://files.pythonhosted.org/packages/" + wheel_path, wheel, checksum)
         ffmpeg = extract_ffmpeg(wheel, runtime, windows=os.name == "nt")
-        version = subprocess.check_output([str(ffmpeg), "-version"], text=True, timeout=30).splitlines()[0]
+        version = subprocess.check_output(
+            [str(ffmpeg), "-version"], text=True, encoding="utf-8", errors="replace", timeout=30,
+        ).splitlines()[0]
         result["ffmpeg"] = {"command": ffmpeg.relative_to(runtime).as_posix(), "version": version}
         if os.name == "nt":
             suffix, git_checksum = GIT_ARCHIVES[arch]

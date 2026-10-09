@@ -50,10 +50,13 @@ export function resolveAppOwnedRuntime({
   fileExists: (filename: string) => boolean
   platform?: NodeJS.Platform
 }): AppOwnedRuntime | null {
-  if (!isPackaged || (platform !== 'win32' && platform !== 'darwin')) return null
+  if (!isPackaged || (platform !== 'win32' && platform !== 'darwin')) {
+    return null
+  }
 
   const paths = platform === 'win32' ? path.win32 : path.posix
   const relativePython = typeof manifest?.pythonExecutable === 'string' ? manifest.pythonExecutable : ''
+
   const fail = () => {
     throw new Error(
       'The installed Work4You runtime is incomplete. Reinstall Work4You from the downloads page. Your conversations and settings remain in their existing data folder.'
@@ -68,14 +71,18 @@ export function resolveAppOwnedRuntime({
     paths.isAbsolute(relativePython) ||
     relativePython.split(/[\\/]/).some(part => part === '..') ||
     /^[a-z]:/i.test(relativePython)
-  )
+  ) {
     return fail()
+  }
 
   const root = paths.join(bundleDir, 'work4you')
   const pythonExecutable = paths.join(bundleDir, relativePython)
 
   const files = runtimeManifestFiles(manifest)
-  if (!files || files.some(file => !fileExists(paths.join(bundleDir, file)))) return fail()
+
+  if (!files || files.some(file => !fileExists(paths.join(bundleDir, file)))) {
+    return fail()
+  }
 
   return {
     bundleDir,

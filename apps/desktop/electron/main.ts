@@ -1,4 +1,4 @@
-import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process'
+import { execFile, execFileSync, spawn } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -227,18 +227,18 @@ import {
   writePackagedWindowsHandoffScript
 } from './packaged-installer-update'
 import {
-  attachPrefetchFields,
-  packagedPrefetchPercent,
-  packagedUpdateScratchDir,
-  shouldStartPackagedPrefetch
-} from './packaged-update-prefetch'
-import {
   ensurePackagedUpdateArtifact,
   isPackagedArtifactValid,
   packagedArtifactKey,
   packagedArtifactPath,
   prunePackagedArtifactCache
 } from './packaged-update-artifact'
+import {
+  attachPrefetchFields,
+  packagedPrefetchPercent,
+  packagedUpdateScratchDir,
+  shouldStartPackagedPrefetch
+} from './packaged-update-prefetch'
 import {
   cancelPackagedUpdate,
   confirmPackagedUpdateHealth,
@@ -2530,7 +2530,10 @@ function findGitBash() {
   if (IS_PACKAGED && IS_WINDOWS) {
     const bundled = getAppOwnedRuntime()
     const bash = bundled && path.join(bundled.bundleDir, 'git', 'bin', 'bash.exe')
-    if (bash && fileExists(bash)) return bash
+
+    if (bash && fileExists(bash)) {
+      return bash
+    }
   }
 
   return _findGitBash({
@@ -2594,8 +2597,10 @@ function resolveGitBinary() {
   if (IS_PACKAGED) {
     const bundled = getAppOwnedRuntime()
     const git = bundled && path.join(bundled.bundleDir, 'git', 'cmd', 'git.exe')
+
     if (git && fileExists(git)) {
       _gitBinaryCache = git
+
       return git
     }
   }
@@ -2745,7 +2750,9 @@ function writeZoomState(zoomLevel) {
 function resolveUpdateRoot() {
   const bundled = getAppOwnedRuntime()
 
-  if (bundled) return bundled.root
+  if (bundled) {
+    return bundled.root
+  }
 
   const candidates = [
     process.env.WORK4YOU_DESKTOP_WORK4YOU_ROOT && path.resolve(process.env.WORK4YOU_DESKTOP_WORK4YOU_ROOT),
@@ -2902,7 +2909,9 @@ async function ensurePackagedInstallerDownload(
       return existing.dest
     }
 
-    if (!existing.ready) return existing.promise
+    if (!existing.ready) {
+      return existing.promise
+    }
   }
 
   const scratchDir = path.join(app.getPath('userData'), 'updates-cache')
@@ -2923,7 +2932,10 @@ async function ensurePackagedInstallerDownload(
 
   const promise = (async () => {
     const emitProgress = (percent: number | null) => {
-      if (packagedPrefetchJob?.key !== key) return
+      if (packagedPrefetchJob?.key !== key) {
+        return
+      }
+
       if (packagedPrefetchJob && packagedPrefetchJob.key === key) {
         packagedPrefetchJob.percent = percent
       }
@@ -2997,7 +3009,10 @@ function kickPackagedPrefetch(releaseTag?: string): void {
   void resolvePackagedApplyPlan(releaseTag)
     .then(plan => (request === packagedPrefetchRequest ? ensurePackagedInstallerDownload(plan, 'prefetch') : undefined))
     .catch(error => {
-      if (request !== packagedPrefetchRequest) return
+      if (request !== packagedPrefetchRequest) {
+        return
+      }
+
       const message = error instanceof Error ? error.message : String(error)
       rememberLog(`[updates] packaged prefetch failed: ${message}`)
 
@@ -3785,7 +3800,9 @@ async function applyPackagedInstallerUpdates() {
   if (IS_MAC) {
     const error = await shell.openPath(dest)
 
-    if (error) return { ok: false, error: 'installer-open-failed', message: error }
+    if (error) {
+      return { ok: false, error: 'installer-open-failed', message: error }
+    }
 
     return {
       ok: true,
@@ -3795,13 +3812,18 @@ async function applyPackagedInstallerUpdates() {
     }
   }
 
-  if (!(await confirmUpdateWithActiveWork())) return { ok: false, cancelled: true }
+  if (!(await confirmUpdateWithActiveWork())) {
+    return { ok: false, cancelled: true }
+  }
+
   const approvedWork = JSON.stringify(mergeActiveWork(activeWorkByWebContents.values()))
 
   const previousAttempt = readPackagedUpdateState(PACKAGED_UPDATE_STATE_PATH)
+
   if (previousAttempt && (await hasLivePackagedUpdateProcess(previousAttempt, processIdentityMatches))) {
     const message = 'An update installer is already running. Wait for it to finish.'
     emitUpdateProgress({ stage: 'error', message, percent: null })
+
     return { ok: false, error: 'update-already-running', message }
   }
 
@@ -3825,6 +3847,7 @@ async function applyPackagedInstallerUpdates() {
 
   let spawned: ReturnType<typeof packagedInstallerApplySpawn>
   let child: ReturnType<typeof spawnUpdaterProcess>
+
   try {
     spawned = packagedInstallerApplySpawn({
       platform: process.platform,
@@ -3847,6 +3870,7 @@ async function applyPackagedInstallerUpdates() {
     const message = error instanceof Error ? error.message : String(error)
     publishPackagedUpdateResult(failPackagedUpdate(PACKAGED_UPDATE_STATE_PATH, message))
     emitUpdateProgress({ stage: 'error', message, percent: null })
+
     return { ok: false, error: 'updater-spawn-failed', message }
   }
 
@@ -3884,6 +3908,7 @@ async function applyPackagedInstallerUpdates() {
     !(await confirmUpdateWithActiveWork())
   ) {
     publishPackagedUpdateResult(cancelPackagedUpdate(PACKAGED_UPDATE_STATE_PATH))
+
     return { ok: false, cancelled: true }
   }
 
@@ -3901,7 +3926,11 @@ async function applyPackagedInstallerUpdates() {
 async function confirmUpdateWithActiveWork(): Promise<boolean> {
   return confirmActiveWorkBeforeUpdate(activeWorkByWebContents.values(), async prompt => {
     const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
-    if (!parent || parent.isDestroyed()) return false
+
+    if (!parent || parent.isDestroyed()) {
+      return false
+    }
+
     const { response } = await dialog.showMessageBox(parent, {
       type: 'question',
       title: 'Update Work4You',
@@ -3917,13 +3946,17 @@ async function confirmUpdateWithActiveWork(): Promise<boolean> {
 }
 
 function publishPackagedUpdateResult(result) {
-  if (!result) return
+  if (!result) {
+    return
+  }
+
   if (result.stage === 'succeeded') {
     void prunePackagedArtifactCache(
       path.join(app.getPath('userData'), 'updates-cache'),
       [result.installerPath, result.recoveryInstallerPath, packagedPrefetchJob?.dest].filter(Boolean)
     ).catch(error => rememberLog(`[updates] installer cache cleanup failed: ${error.message}`))
   }
+
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
       window.webContents.send('work4you:updates:result-changed', result)
@@ -3933,17 +3966,27 @@ function publishPackagedUpdateResult(result) {
 
 function watchPackagedUpdateResult() {
   const current = readPackagedUpdateState(PACKAGED_UPDATE_STATE_PATH)
-  if (!current || ['succeeded', 'failed', 'cancelled'].includes(current.stage)) return
+
+  if (!current || ['succeeded', 'failed', 'cancelled'].includes(current.stage)) {
+    return
+  }
 
   // The installer owns its exit status and the new app owns health. Watch the
   // receipt directory across atomic renames so late installer completion is
   // delivered even when the backend was ready first.
   const watcher = fs.watch(path.dirname(PACKAGED_UPDATE_STATE_PATH), (_event, filename) => {
-    if (!filename || !String(filename).startsWith(path.basename(PACKAGED_UPDATE_STATE_PATH))) return
+    if (!filename || !String(filename).startsWith(path.basename(PACKAGED_UPDATE_STATE_PATH))) {
+      return
+    }
+
     const result = readPackagedUpdateState(PACKAGED_UPDATE_STATE_PATH)
     publishPackagedUpdateResult(result)
-    if (result && ['succeeded', 'failed', 'cancelled'].includes(result.stage)) watcher.close()
+
+    if (result && ['succeeded', 'failed', 'cancelled'].includes(result.stage)) {
+      watcher.close()
+    }
   })
+
   watcher.on('error', () => watcher.close())
   const deadline = setTimeout(() => watcher.close(), 5 * 60 * 1000)
   deadline.unref()
@@ -3952,22 +3995,34 @@ function watchPackagedUpdateResult() {
 
 async function packagedUpdaterOwnsInstallation(): Promise<boolean> {
   const state = readPackagedUpdateState(PACKAGED_UPDATE_STATE_PATH)
-  if (!state) return false
+
+  if (!state) {
+    return false
+  }
+
   // NSIS starts the new shell before it exits, so the expected version may
   // report health. A timed-out installer can still be writing files, however;
   // its verified process identity keeps every shell closed until it exits.
-  if (state.stage !== 'failed' && sameGitCommit(state.expectedCommit, INSTALL_STAMP?.commit)) return false
+  if (state.stage !== 'failed' && sameGitCommit(state.expectedCommit, INSTALL_STAMP?.commit)) {
+    return false
+  }
+
   return hasLivePackagedUpdateProcess(state, processIdentityMatches)
 }
 
 async function confirmInstalledPackagedUpdate(backendReady = false) {
   const state = readPackagedUpdateState(PACKAGED_UPDATE_STATE_PATH)
 
-  if (!state || !['installing', 'awaiting-health'].includes(state.stage)) return
+  if (!state || !['installing', 'awaiting-health'].includes(state.stage)) {
+    return
+  }
 
   try {
     const runtime = getAppOwnedRuntime()
-    if (!runtime) throw new Error('The installed application has no bundled runtime.')
+
+    if (!runtime) {
+      throw new Error('The installed application has no bundled runtime.')
+    }
 
     if (!backendReady) {
       // Remote/cloud users do not normally start a local server. Verify the
@@ -3978,6 +4033,7 @@ async function confirmInstalledPackagedUpdate(backendReady = false) {
         appExecutable: process.execPath,
         args: []
       })
+
       await new Promise<void>((resolve, reject) => {
         execFile(
           backend.command,
@@ -4019,7 +4075,9 @@ async function applyUpdates(opts: { stopSafeBlockers?: boolean } = {}) {
       return await applyPackagedInstallerUpdates()
     }
 
-    if (!(await confirmUpdateWithActiveWork())) return { ok: false, cancelled: true }
+    if (!(await confirmUpdateWithActiveWork())) {
+      return { ok: false, cancelled: true }
+    }
 
     const updater = resolveUpdaterBinary()
 
@@ -4318,11 +4376,13 @@ async function applyUpdates(opts: { stopSafeBlockers?: boolean } = {}) {
     return { ok: true, handedOff: true, updater }
   } catch (error) {
     const state = readPackagedUpdateState(PACKAGED_UPDATE_STATE_PATH)
+
     if (state?.stage === 'pending') {
       publishPackagedUpdateResult(
         failPackagedUpdate(PACKAGED_UPDATE_STATE_PATH, error instanceof Error ? error.message : String(error))
       )
     }
+
     throw error
   } finally {
     updateInFlight = false
@@ -11364,6 +11424,7 @@ async function startWork4You() {
     const message = error instanceof Error ? error.message : String(error)
 
     const updateState = readPackagedUpdateState(PACKAGED_UPDATE_STATE_PATH)
+
     if (!attemptedRemote && updateState && ['installing', 'awaiting-health'].includes(updateState.stage)) {
       publishPackagedUpdateResult(
         failPackagedUpdate(PACKAGED_UPDATE_STATE_PATH, `The new Work4You runtime failed to start: ${message}`)
@@ -15011,13 +15072,18 @@ const terminalIpc = registerTerminalIpc({
   getSshConnectionState: scope => sshConnections.get(scope),
   localRuntimeEnv: () => {
     const runtime = getAppOwnedRuntime()
-    if (!runtime) return {}
+
+    if (!runtime) {
+      return {}
+    }
+
     const env = appOwnedRuntimeBackend({
       runtime,
       work4youHome: WORK4YOU_HOME,
       appExecutable: process.execPath,
       args: []
     }).env
+
     return Object.fromEntries(
       Object.entries(env).filter(([key]) => key.toUpperCase() === 'PATH' || key.startsWith('WORK4YOU_'))
     )
@@ -15058,16 +15124,22 @@ ipcMain.handle('work4you:updates:recovery:open', async (_event, options) => {
   }
 
   shell.showItemInFolder(installer)
+
   return { ok: true }
 })
 
 async function handleCommandLineUpdate(argv: string[]) {
-  if (!argv.includes('--work4you-update') && !argv.includes('--work4you-check-updates')) return
+  if (!argv.includes('--work4you-update') && !argv.includes('--work4you-check-updates')) {
+    return
+  }
 
   try {
     const result = await checkUpdates()
     const available = 'updateAvailable' in result && result.updateAvailable
-    if ('error' in result && result.error) throw new Error(result.message || 'Could not check for updates.')
+
+    if ('error' in result && result.error) {
+      throw new Error(result.message || 'Could not check for updates.')
+    }
 
     if (!available || argv.includes('--work4you-check-updates')) {
       await dialog.showMessageBox({
@@ -15076,6 +15148,7 @@ async function handleCommandLineUpdate(argv: string[]) {
         message: available ? 'A Work4You update is available.' : 'Work4You is up to date.',
         detail: available ? 'The update is being prepared. Use the update button in Work4You when you are ready.' : ''
       })
+
       return
     }
 
@@ -15089,7 +15162,10 @@ async function handleCommandLineUpdate(argv: string[]) {
       defaultId: 0,
       cancelId: 0
     })
-    if (response === 1) await applyUpdates()
+
+    if (response === 1) {
+      await applyUpdates()
+    }
   } catch (error) {
     dialog.showErrorBox('Work4You update', error instanceof Error ? error.message : String(error))
   }
@@ -15218,6 +15294,7 @@ async function getUninstallSummary() {
   const bundled = getAppOwnedRuntime()
   const py = uninstallVenvPython()
   const agentRoot = bundled?.root || ACTIVE_WORK4YOU_ROOT
+
   const bundledEnv = bundled
     ? appOwnedRuntimeBackend({
         runtime: bundled,
@@ -15307,6 +15384,7 @@ async function runDesktopUninstall(mode) {
   }
 
   const bundled = getAppOwnedRuntime()
+
   const bundledEnv = bundled
     ? appOwnedRuntimeBackend({
         runtime: bundled,
@@ -15315,6 +15393,7 @@ async function runDesktopUninstall(mode) {
         args: []
       }).env
     : {}
+
   const venvPy = uninstallVenvPython()
 
   if (!fileExists(venvPy)) {
@@ -15352,6 +15431,7 @@ async function runDesktopUninstall(mode) {
   }
 
   const appPath = uninstallAppPath(bundled)
+
   if (bundled && IS_WINDOWS && !appPath) {
     return {
       ok: false,
@@ -15359,6 +15439,7 @@ async function runDesktopUninstall(mode) {
       message: 'The Work4You uninstaller is missing. Reinstall Work4You before uninstalling it.'
     }
   }
+
   const removeBundle = shouldRemoveAppBundle(IS_PACKAGED, appPath) ? appPath : null
 
   // CRITICAL (Windows): tear down every backend the desktop owns and wait for
@@ -15607,6 +15688,7 @@ app.whenReady().then(async () => {
     if (await packagedUpdaterOwnsInstallation()) {
       rememberLog('[updates] a complete application update is running; keeping the old application closed')
       app.exit(0)
+
       return
     }
   } catch (error) {
@@ -15614,6 +15696,7 @@ app.whenReady().then(async () => {
     rememberLog(`[updates] could not verify the previous installer: ${message}`)
     dialog.showErrorBox('Work4You update', `${message}\nReopen Work4You after the installer has finished.`)
     app.exit(1)
+
     return
   }
 
@@ -15679,7 +15762,10 @@ app.whenReady().then(async () => {
 
   watchPackagedUpdateResult()
   void handleCommandLineUpdate(process.argv)
-  if (primaryBackendIsRemote()) void confirmInstalledPackagedUpdate()
+
+  if (primaryBackendIsRemote()) {
+    void confirmInstalledPackagedUpdate()
+  }
 
   // Win/Linux cold start: the launching work4you:// URL is in our own argv.
   const _coldStartLink = _extractDeepLink(process.argv)

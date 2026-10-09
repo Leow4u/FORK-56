@@ -35,7 +35,10 @@ def check_digest(identity: dict, expected: str | None) -> None:
 
 
 def run(args: list[str], *, timeout: int = 600, env: dict | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(args, check=True, timeout=timeout, env=env, capture_output=True, text=True)
+    return subprocess.run(
+        args, check=True, timeout=timeout, env=env, capture_output=True,
+        text=True, encoding="utf-8", errors="replace",
+    )
 
 
 def install(artifact: Path, app_dir: Path, *, signed: bool, env: dict) -> tuple[Path, dict]:

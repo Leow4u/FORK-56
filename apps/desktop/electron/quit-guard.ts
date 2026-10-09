@@ -99,7 +99,11 @@ export async function confirmActiveWorkBeforeUpdate(
   confirm: (prompt: QuitPrompt) => Promise<boolean>
 ): Promise<boolean> {
   const prompt = quitPromptFor(mergeActiveWork(reports), false)
-  if (!prompt) return true
+
+  if (!prompt) {
+    return true
+  }
+
   try {
     return await confirm(prompt)
   } catch {
