@@ -46,7 +46,7 @@ export function ProfileFace({ className, mood = 'idle', name, size }: ProfileFac
   return (
     <span
       aria-hidden
-      className={cn('relative inline-grid shrink-0 place-items-center', className)}
+      className={cn('relative inline-grid shrink-0 place-items-center overflow-hidden', className)}
       data-slot="profile-face"
       style={{ height: size, width: size }}
     >
