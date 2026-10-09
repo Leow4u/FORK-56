@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DesktopUpdateProgress, DesktopUpdateStatus } from '@/global'
+import type { DesktopPackagedUpdateState, DesktopUpdateProgress, DesktopUpdateStatus } from '@/global'
 
 const storage = new Map<string, string>()
 
@@ -43,6 +43,8 @@ vi.mock('@/work4you', () => ({
 
 const {
   maybeNotifyUpdateAvailable,
+  ingestPackagedUpdateResult,
+  $packagedUpdateResult,
   checkBackendUpdates,
   $backendUpdateStatus,
   applyBackendUpdate,
@@ -57,6 +59,7 @@ const {
   resetUpdateApplyState,
   shouldApplyOnActiveUpdate,
   startActiveUpdate,
+  startClientUpdate,
   startUpdatePoller,
   stopUpdatePoller,
   $updateStatus
@@ -85,6 +88,57 @@ const setRemote = (on: boolean) =>
     logs: [],
     windowButtonPosition: null
   })
+
+const packagedResult = (over: Partial<DesktopPackagedUpdateState> = {}): DesktopPackagedUpdateState => ({
+  attemptId: 'attempt-success',
+  stage: 'awaiting-health',
+  releaseTag: 'desktop-v1.0.0',
+  expectedCommit: 'a'.repeat(40),
+  previousCommit: 'b'.repeat(40),
+  installerPath: '/cache/Work4You-Setup.exe',
+  recoveryInstallerPath: null,
+  ...over
+})
+
+describe('packaged update outcome', () => {
+  beforeEach(() => {
+    storage.clear()
+    notifySpy.mockClear()
+    $updateOverlayOpen.set(false)
+    resetUpdateApplyState()
+  })
+
+  it('does not claim success from installer completion before backend health is confirmed', () => {
+    ingestPackagedUpdateResult(packagedResult())
+
+    expect(notifySpy).not.toHaveBeenCalled()
+    expect($updateOverlayOpen.get()).toBe(false)
+  })
+
+  it('announces verified success only once for the same attempt', () => {
+    const result = packagedResult({ stage: 'succeeded' })
+    ingestPackagedUpdateResult(result)
+    ingestPackagedUpdateResult(result)
+
+    expect(notifySpy).toHaveBeenCalledTimes(1)
+    expect(notifySpy.mock.calls[0]?.[0]).toMatchObject({ kind: 'success' })
+    expect($updateOverlayOpen.get()).toBe(false)
+  })
+
+  it('offers a persisted failure without stealing focus and opens client recovery on request', () => {
+    ingestPackagedUpdateResult(
+      packagedResult({ attemptId: 'attempt-failed', stage: 'failed', error: 'Installer returned exit code 2.' })
+    )
+
+    expect($updateOverlayOpen.get()).toBe(false)
+    const toast = notifySpy.mock.calls.at(-1)?.[0]
+    expect(toast).toMatchObject({ kind: 'warning', durationMs: 0, message: 'Installer returned exit code 2.' })
+    toast.action.onClick()
+    expect($updateOverlayOpen.get()).toBe(true)
+    expect($updateOverlayTarget.get()).toBe('client')
+    expect($updateApply.get()).toMatchObject({ applying: false, stage: 'error', error: 'packaged-update-failed' })
+  })
+})
 
 describe('maybeNotifyUpdateAvailable', () => {
   beforeEach(() => {
@@ -381,6 +435,39 @@ describe('requestActiveUpdate', () => {
     expect($updateOverlayTarget.get()).toBe('backend')
   })
 
+  it('keeps the client chip on the client when connected to a remote backend', async () => {
+    setRemote(true)
+    $updateStatus.set(status({ channel: 'installer', prefetchReady: true }))
+    $backendUpdateStatus.set(status())
+
+    startClientUpdate()
+    await vi.waitFor(() => expect(applyClientMock).toHaveBeenCalledTimes(1))
+
+    expect(updateWork4YouSpy).not.toHaveBeenCalled()
+    expect($updateOverlayTarget.get()).toBe('client')
+  })
+
+  it('does not start another client apply from repeated clicks during handoff', async () => {
+    setRemote(false)
+    $updateStatus.set(status({ channel: 'installer', prefetchReady: true }))
+
+    startClientUpdate()
+    startClientUpdate()
+    await vi.waitFor(() => expect(applyClientMock).toHaveBeenCalledTimes(1))
+  })
+
+  it('opens the client update from its notification while a remote backend is active', () => {
+    setRemote(true)
+    maybeNotifyUpdateAvailable(status())
+    const toast = notifySpy.mock.calls.at(-1)?.[0]
+
+    toast.action.onClick()
+
+    expect($updateOverlayTarget.get()).toBe('client')
+    expect(checkClientMock).toHaveBeenCalled()
+    expect(updateWork4YouSpy).not.toHaveBeenCalled()
+  })
+
   it('always opens the overlay, so selecting the row is never a silent no-op', () => {
     setRemote(false)
     $updateStatus.set(status({ behind: 3 }))
@@ -553,6 +640,32 @@ describe('applyUpdates terminal state', () => {
     expect($updateApply.get().applying).toBe(false)
     expect($updateApply.get().stage).toBe('error')
     expect($updateApply.get().error).toBe('rebuild-failed')
+  })
+
+  it('dismisses quietly when the user keeps active work running', async () => {
+    applyMock.mockResolvedValue({ ok: false, cancelled: true })
+
+    await applyUpdates()
+
+    expect($updateApply.get().stage).toBe('idle')
+    expect($updateApply.get().applying).toBe(false)
+    expect($updateOverlayOpen.get()).toBe(false)
+    expect(notifySpy).not.toHaveBeenCalled()
+  })
+
+  it('shows the macOS manual step without inventing a CLI update command', async () => {
+    applyMock.mockResolvedValue({ ok: true, manual: true, message: 'Drag Work4You to Applications, then reopen it.' })
+
+    await applyUpdates()
+
+    expect($updateApply.get()).toMatchObject({
+      stage: 'manual',
+      command: null,
+      applying: false,
+      message: 'Drag Work4You to Applications, then reopen it.'
+    })
+    expect($updateOverlayOpen.get()).toBe(true)
+    expect(notifySpy).not.toHaveBeenCalled()
   })
 
   it('preserves structured safe blockers for the close-and-update prompt', async () => {
@@ -1033,12 +1146,16 @@ describe('applyBackendUpdate recovery', () => {
 describe('startUpdatePoller', () => {
   const checkMock = vi.fn()
   const onProgressMock = vi.fn()
+  const resultMock = vi.fn()
+  const onResultMock = vi.fn()
   const listeners: Record<string, Function> = {}
 
   beforeEach(() => {
     storage.clear()
     checkMock.mockReset()
     onProgressMock.mockReset()
+    resultMock.mockReset().mockResolvedValue(null)
+    onResultMock.mockReset()
     Object.keys(listeners).forEach(k => delete listeners[k])
     checkMock.mockResolvedValue({
       supported: true,
@@ -1048,7 +1165,9 @@ describe('startUpdatePoller', () => {
     })
     $updateStatus.set(null)
     ;(globalThis as unknown as { window: unknown }).window = {
-      work4youDesktop: { updates: { check: checkMock, onProgress: onProgressMock } },
+      work4youDesktop: {
+        updates: { check: checkMock, onProgress: onProgressMock, result: resultMock, onResult: onResultMock }
+      },
       addEventListener: vi.fn((event: string, handler: Function) => {
         listeners[event] = handler
       }),
@@ -1072,6 +1191,31 @@ describe('startUpdatePoller', () => {
 
     expect(checkMock).toHaveBeenCalled()
     expect($updateStatus.get()?.behind).toBe(5)
+  })
+
+  it('keeps a fresh health result when the initial receipt read resolves late', async () => {
+    let resolveInitial!: (result: DesktopPackagedUpdateState) => void
+    resultMock.mockReturnValue(
+      new Promise<DesktopPackagedUpdateState>(resolve => {
+        resolveInitial = resolve
+      })
+    )
+    let onResult!: (result: DesktopPackagedUpdateState) => void
+    const unsubscribe = vi.fn()
+    onResultMock.mockImplementation(cb => {
+      onResult = cb
+
+      return unsubscribe
+    })
+
+    startUpdatePoller()
+    onResult(packagedResult({ stage: 'succeeded' }))
+    resolveInitial(packagedResult({ stage: 'awaiting-health' }))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect($packagedUpdateResult.get()?.stage).toBe('succeeded')
+    stopUpdatePoller()
+    expect(unsubscribe).toHaveBeenCalledTimes(1)
   })
 
   it('calls checkUpdates() on each interval tick', async () => {

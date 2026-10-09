@@ -24,6 +24,8 @@ import {
   $backendUpdateApply,
   $backendUpdateChecking,
   $backendUpdateStatus,
+  $desktopVersion,
+  $packagedUpdateResult,
   $updateApply,
   $updateChecking,
   $updateOverlayOpen,
@@ -33,6 +35,7 @@ import {
   applyUpdates,
   checkBackendUpdates,
   checkUpdates,
+  openRecoveryInstaller,
   resetUpdateApplyState,
   setUpdateOverlayOpen,
   type UpdateApplyState
@@ -45,6 +48,8 @@ function totalItems(groups: readonly CommitGroup[]) {
 export function UpdatesOverlay() {
   const open = useStore($updateOverlayOpen)
   const target = useStore($updateOverlayTarget)
+  const desktopVersion = useStore($desktopVersion)
+  const packagedResult = useStore($packagedUpdateResult)
 
   const clientStatus = useStore($updateStatus)
   const clientChecking = useStore($updateChecking)
@@ -129,7 +134,21 @@ export function UpdatesOverlay() {
         ) : null}
 
         {phase === 'error' && !updateBlockers ? (
-          <ErrorView message={apply.message} onDismiss={() => handleClose(false)} onRetry={handleInstall} />
+          <ErrorView
+            message={apply.message}
+            onDismiss={() => handleClose(false)}
+            onPreviousRecovery={
+              !isBackend && apply.error === 'packaged-update-failed' && packagedResult?.recoveryInstallerPath
+                ? () => void openRecoveryInstaller(true)
+                : undefined
+            }
+            onRecovery={
+              !isBackend && apply.error === 'packaged-update-failed' && packagedResult?.installerPath
+                ? () => void openRecoveryInstaller()
+                : undefined
+            }
+            onRetry={handleInstall}
+          />
         ) : null}
 
         {phase === 'idle' && (
@@ -140,6 +159,7 @@ export function UpdatesOverlay() {
             onInstall={handleInstall}
             onLater={() => handleClose(false)}
             onRetryCheck={() => void check()}
+            platform={desktopVersion?.platform}
             status={status}
             target={target}
             updateAvailable={updateAvailable}
@@ -157,6 +177,7 @@ function IdleView({
   onInstall,
   onLater,
   onRetryCheck,
+  platform,
   status,
   target,
   updateAvailable
@@ -167,6 +188,7 @@ function IdleView({
   onInstall: () => void
   onLater: () => void
   onRetryCheck: () => void
+  platform?: string
   status: DesktopUpdateStatus | null
   target: UpdateTarget
   updateAvailable: boolean
@@ -215,7 +237,7 @@ function IdleView({
             {u.tryAgain}
           </Button>
         }
-        body={u.connectionRetry}
+        body={status.message || u.connectionRetry}
         icon={<ErrorIcon />}
         title={u.checkFailedTitle}
       />
@@ -240,11 +262,18 @@ function IdleView({
   // backend, not the local client — say so. When there are no commit rows to
   // show (e.g. pip/non-git backend), degrade to honest "no release notes" copy
   // instead of generic filler.
-  const { title, body } = resolveUpdateCopy({ target, shownItems, copy: u, channel: status.channel })
+  const { title, body } = resolveUpdateCopy({ target, shownItems, copy: u, channel: status.channel, platform })
 
   const finalize = resolveUpdateFinalizeAction({
     channel: status.channel,
-    copy: { restartToFinish: u.restartToFinish, updateNow: u.updateNow },
+    copy: {
+      restartToFinish: u.restartToFinish,
+      updateNow: u.updateNow,
+      openInstaller: u.openInstaller,
+      preparing: u.preparingDownload,
+      retryDownload: u.retryDownload
+    },
+    platform,
     prefetchError: status.prefetchError,
     prefetchPercent: status.prefetchPercent,
     prefetchReady: status.prefetchReady
@@ -254,7 +283,8 @@ function IdleView({
 
   const preparing = typeof rawPrefetchPercent === 'number' && !status.prefetchReady && !status.prefetchError
 
-  const prefetchPercent = preparing ? Math.max(2, Math.min(100, Math.round(rawPrefetchPercent))) : null
+  const prefetchPercent =
+    preparing && Number.isFinite(rawPrefetchPercent) ? Math.max(0, Math.min(100, Math.round(rawPrefetchPercent))) : null
 
   return (
     <div className="grid gap-5 px-6 pb-6 pt-7 pr-8">
@@ -273,6 +303,12 @@ function IdleView({
           size="default"
           value={prefetchPercent / 100}
         />
+      ) : null}
+
+      {status.prefetchError ? (
+        <p className="text-center text-sm text-destructive" role="alert">
+          {status.prefetchError}
+        </p>
       ) : null}
 
       <div className="grid gap-3">
@@ -331,7 +367,7 @@ function ManualView({ command, message, onDone }: { command: string | null; mess
         <div className="flex flex-col items-center gap-3 text-center">
           <Terminal className="size-8 text-primary" />
 
-          <DialogTitle className="text-center text-xl">{u.manualTitle}</DialogTitle>
+          <DialogTitle className="text-center text-xl">{u.manualInstallTitle}</DialogTitle>
           <DialogDescription className="text-center text-sm">{message || u.manualPickedUp}</DialogDescription>
         </div>
 
@@ -416,16 +452,19 @@ function ApplyingView({ apply }: { apply: UpdateApplyState }) {
 
   const percent =
     typeof apply.percent === 'number' && Number.isFinite(apply.percent)
-      ? Math.max(2, Math.min(100, Math.round(apply.percent)))
+      ? Math.max(0, Math.min(100, Math.round(apply.percent)))
       : null
 
-  // The stage title is the whole sheet. Apply messages stay on the progress
-  // stream for logs and tooltips; they are not a second caption under the title.
   return (
     <div className="grid gap-6 px-8 pb-8 pt-10">
       <div className="flex flex-col items-center gap-4 text-center">
         <BrandMark className="size-12" />
         <DialogTitle className="text-center text-lg font-medium tracking-tight">{label}</DialogTitle>
+        {apply.message && (
+          <DialogDescription className="text-center text-sm" role="status">
+            {apply.message}
+          </DialogDescription>
+        )}
       </div>
 
       <Progress
@@ -540,7 +579,19 @@ export function BlockerView({
   )
 }
 
-function ErrorView({ message, onDismiss, onRetry }: { message: string; onDismiss: () => void; onRetry: () => void }) {
+function ErrorView({
+  message,
+  onDismiss,
+  onRetry,
+  onRecovery,
+  onPreviousRecovery
+}: {
+  message: string
+  onDismiss: () => void
+  onRetry: () => void
+  onRecovery?: () => void
+  onPreviousRecovery?: () => void
+}) {
   const { t } = useI18n()
   const u = t.updates
 
@@ -557,6 +608,16 @@ function ErrorView({ message, onDismiss, onRetry }: { message: string; onDismiss
       <Button className="font-semibold" onClick={onRetry} size="lg">
         {u.tryAgain}
       </Button>
+      {onRecovery && (
+        <Button onClick={onRecovery} variant="secondary">
+          {u.showInstaller}
+        </Button>
+      )}
+      {onPreviousRecovery && (
+        <Button onClick={onPreviousRecovery} variant="secondary">
+          {u.showPreviousInstaller}
+        </Button>
+      )}
       <Button onClick={onDismiss} variant="text">
         {u.notNow}
       </Button>

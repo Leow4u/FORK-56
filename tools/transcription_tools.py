@@ -394,6 +394,11 @@ def _try_lazy_install_stt() -> bool:
     installs it. This function re-checks dynamically after installation so
     the provider can use it immediately without a process restart.
     """
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        logger.error("Speech recognition is missing from the app. Repair or update Work4You Desktop.")
+        return False
     try:
         from tools.lazy_deps import ensure
         # prompt=False: never raise a blocking input() prompt mid-session.
@@ -1824,15 +1829,31 @@ def _load_local_whisper_model(model_name: str, device: str = "auto", compute_typ
         os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
     from faster_whisper import WhisperModel
+    from work4you_cli.managed_runtime import bundled_runtime_root, bundled_runtime_manifest, bundled_capability_path
+
+    model_kwargs = {}
+    if bundled_runtime_root() is not None:
+        capability = bundled_runtime_manifest().get("capabilities", {}).get("voice", {})
+        if model_name == capability.get("model", "base"):
+            model_file = bundled_capability_path("voice", "modelFile")
+            if model_file is None:
+                raise RuntimeError("Speech recognition model is missing from the app. Repair or update Work4You Desktop.")
+            model_name = str(model_file.parent)
+            model_kwargs["local_files_only"] = True
+        else:
+            # Explicit alternative models remain user data, outside the app.
+            from work4you_constants import get_work4you_home
+
+            model_kwargs["download_root"] = str(get_work4you_home() / "cache" / "whisper")
     if force_cpu:
         logger.info(
             "Apple Silicon/Rosetta detected — loading faster-whisper on CPU "
             "(int8) to avoid native device autodetection crashes"
         )
-        return WhisperModel(model_name, device="cpu", compute_type="int8")
+        return WhisperModel(model_name, device="cpu", compute_type="int8", **model_kwargs)
 
     try:
-        return WhisperModel(model_name, device=device, compute_type=compute_type)
+        return WhisperModel(model_name, device=device, compute_type=compute_type, **model_kwargs)
     except Exception as exc:
         if not _looks_like_cuda_lib_error(exc):
             raise
@@ -1841,7 +1862,7 @@ def _load_local_whisper_model(model_name: str, device: str = "auto", compute_typ
             "Install the NVIDIA CUDA runtime (libcublas/libcudnn) to use GPU.",
             exc,
         )
-        return WhisperModel(model_name, device="cpu", compute_type="int8")
+        return WhisperModel(model_name, device="cpu", compute_type="int8", **model_kwargs)
 
 
 # Silence-hallucination hardening defaults for local faster-whisper.

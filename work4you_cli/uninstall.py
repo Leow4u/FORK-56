@@ -517,6 +517,12 @@ def run_gui_uninstall(args):
     userData dir — nothing under ``$WORK4YOU_HOME`` config/sessions/.env, and
     never the Python agent or its venv.
     """
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        print("Uninstall this installation from Work4You Desktop settings or your operating system's apps settings.")
+        return
+
     from work4you_cli.gui_uninstall import (
         agent_is_installed,
         gui_install_summary,
@@ -589,6 +595,12 @@ def run_uninstall(args):
     - Full uninstall: removes code + ~/.work4you/ (configs, data, logs)
     - Keep data: removes code but keeps ~/.work4you/ for future reinstall
     """
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        print("Uninstall this installation from Work4You Desktop settings or your operating system's apps settings.")
+        return
+
     project_root = get_project_root()
     work4you_home = get_work4you_home()
 
@@ -932,6 +944,32 @@ def _perform_uninstall(
     print()
 
 
+def _cleanup_app_owned_data(mode: str, runtime_root: Path) -> None:
+    """Finish the desktop's confirmed cleanup without deleting its interpreter.
+
+    The detached OS cleanup removes the application after this process exits.
+    Source installations, their shims and services are not owned by this app.
+    """
+    if mode not in {"gui", "lite", "full"}:
+        raise ValueError(f"Unknown uninstall mode: {mode}")
+    data_home = get_work4you_home().resolve()
+    if mode != "full":
+        log_info(f"Keeping configuration and data in {data_home}")
+        return
+    runtime_root = runtime_root.resolve()
+    if data_home == runtime_root or data_home in runtime_root.parents or runtime_root in data_home.parents:
+        raise ValueError("The app runtime and user data directories overlap; refusing to delete the running application.")
+    if data_home.exists():
+        shutil.rmtree(data_home)
+        log_success(f"Removed {data_home}")
+    from work4you_cli.gui_uninstall import desktop_userdata_dir
+
+    userdata = desktop_userdata_dir().resolve()
+    if userdata.exists() and userdata != runtime_root and userdata not in runtime_root.parents and runtime_root not in userdata.parents:
+        shutil.rmtree(userdata)
+        log_success(f"Removed {userdata}")
+
+
 class _UninstallArgs:
     """Lightweight args namespace for the module entrypoint below."""
 
@@ -966,6 +1004,12 @@ def main(argv=None) -> int:
         help="gui = Chat GUI only; lite = GUI + agent, keep data; full = everything",
     )
     ns = parser.parse_args(argv)
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    runtime_root = bundled_runtime_root()
+    if runtime_root is not None:
+        _cleanup_app_owned_data(ns.mode, runtime_root)
+        return 0
     args = _UninstallArgs(mode=ns.mode)
 
     if args.gui:

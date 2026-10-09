@@ -258,6 +258,20 @@ def test_cli_train_gate_publishes_when_app_code_changed(capsys, monkeypatch):
     assert capsys.readouterr().out == "release=true\n"
 
 
+@pytest.mark.parametrize("changed_file", [
+    "scripts/ci/prepare_desktop_runtime.py",
+    "scripts/ci/build-desktop-capabilities.py",
+    "scripts/ci/build-desktop-core-tools.py",
+    "scripts/ci/build-desktop-voice.py",
+    "scripts/ci/desktop-browser-requirements.txt",
+])
+def test_runtime_payload_changes_feed_the_release_train(changed_file):
+    decision = mod.decide_release_train(
+        github_latest="desktop-v0.0.8", base_sha=SHA, changed_files=[changed_file]
+    )
+    assert decision.release is True
+
+
 def test_cli_still_requires_an_event_outside_the_train_gate():
     with pytest.raises(SystemExit) as excinfo:
         mod.main([])

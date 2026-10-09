@@ -2861,6 +2861,11 @@ def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
     Installs that can't honor non-default branches (e.g. Docker) surface a
     one-line notice instead of silently dropping the flag.
     """
+    from work4you_cli.managed_runtime import delegate_desktop_update
+
+    if delegate_desktop_update(check=True):
+        return
+
     from work4you_cli.config import (
         detect_install_method,
         is_nix_install_method,
@@ -4787,6 +4792,11 @@ def _rebuild_desktop_after_update(
 def _cmd_update_impl(args, gateway_mode: bool):
     """Body of ``cmd_update`` — kept separate so the wrapper can always
     restore stdio even on ``sys.exit``."""
+    from work4you_cli.managed_runtime import delegate_desktop_update
+
+    if delegate_desktop_update(check=bool(getattr(args, "check", False))):
+        return
+
     # A managed-runtime refresh can replace site-packages before the normal
     # ``.[all]`` install runs. Snapshot while the old environment can still
     # prove which optional backends the user had activated.

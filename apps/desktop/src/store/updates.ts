@@ -6,6 +6,7 @@
 import { atom } from 'nanostores'
 
 import type {
+  DesktopPackagedUpdateState,
   DesktopUpdateApplyOptions,
   DesktopUpdateApplyResult,
   DesktopUpdateBlocker,
@@ -50,6 +51,7 @@ export const $updateApply = atom<UpdateApplyState>(IDLE)
 export const $updateChecking = atom<boolean>(false)
 export const $updateOverlayOpen = atom<boolean>(false)
 export const $updateStatus = atom<DesktopUpdateStatus | null>(null)
+export const $packagedUpdateResult = atom<DesktopPackagedUpdateState | null>(null)
 
 // Client and backend are independently updatable; each keeps its own state.
 export const $backendUpdateStatus = atom<DesktopUpdateStatus | null>(null)
@@ -73,6 +75,75 @@ export const resetUpdateApplyState = () => {
 }
 
 const UPDATE_TOAST_ID = 'desktop-update-available'
+const UPDATE_RESULT_TOAST_ID = 'desktop-update-result'
+const UPDATE_RESULT_SEEN_KEY = 'work4you:update-result-seen'
+let failedAttemptNotified: string | null = null
+
+export function ingestPackagedUpdateResult(result: DesktopPackagedUpdateState | null): void {
+  $packagedUpdateResult.set(result)
+
+  if (!result || (result.stage !== 'succeeded' && result.stage !== 'failed')) {
+    return
+  }
+
+  if (result.stage === 'succeeded') {
+    if (storedString(UPDATE_RESULT_SEEN_KEY) === result.attemptId) {
+      return
+    }
+
+    persistString(UPDATE_RESULT_SEEN_KEY, result.attemptId)
+    notify({
+      id: UPDATE_RESULT_TOAST_ID,
+      kind: 'success',
+      title: translateNow('updates.completedTitle'),
+      message: translateNow('updates.completedBody'),
+      durationMs: 8000
+    })
+
+    return
+  }
+
+  if (failedAttemptNotified === result.attemptId) {
+    return
+  }
+
+  failedAttemptNotified = result.attemptId
+  notify({
+    id: UPDATE_RESULT_TOAST_ID,
+    kind: 'warning',
+    title: translateNow('updates.errorTitle'),
+    message: result.error || translateNow('updates.errorBody'),
+    durationMs: 0,
+    action: {
+      label: translateNow('updates.reviewFailure'),
+      onClick: () => {
+        $updateApply.set({
+          ...IDLE,
+          stage: 'error',
+          error: 'packaged-update-failed',
+          message: result.error || translateNow('updates.errorBody')
+        })
+        $updateOverlayTarget.set('client')
+        $updateOverlayOpen.set(true)
+      }
+    }
+  })
+}
+
+export async function openRecoveryInstaller(previous = false): Promise<void> {
+  try {
+    const result = await window.work4youDesktop?.updates.openRecoveryInstaller({ previous })
+
+    if (result?.ok) {
+      return
+    }
+
+    throw new Error(result?.message || translateNow('updates.recoveryUnavailable'))
+  } catch (error) {
+    $updateApply.set({ ...$updateApply.get(), message: error instanceof Error ? error.message : String(error) })
+  }
+}
+
 // Time-based snooze instead of per-sha dismissal: this repo lands ~100 commits
 // a day, so a "don't show this exact sha again" guard re-popped the toast on
 // every new commit. We instead suppress the toast for a cooldown window that
@@ -204,7 +275,7 @@ export function reportInstallMethodWarning(message: string | undefined): void {
  * (re)starts the cooldown, so a busy upstream branch doesn't re-spam the user
  * on every new commit. The snooze is persisted, so it survives relaunches too.
  */
-export function maybeNotifyUpdateAvailable(status: DesktopUpdateStatus | null) {
+export function maybeNotifyUpdateAvailable(status: DesktopUpdateStatus | null, target: UpdateTarget = 'client') {
   if (!status || status.supported === false || status.error) {
     return
   }
@@ -237,7 +308,7 @@ export function maybeNotifyUpdateAvailable(status: DesktopUpdateStatus | null) {
       label: translateNow('notifications.seeWhatsNew'),
       onClick: () => {
         snoozeUpdateToast()
-        openUpdatesWindow()
+        openUpdateOverlayFor(target)
       }
     },
     durationMs: 0,
@@ -313,8 +384,24 @@ export function mergeClientUpdateStatus(
 
 export function startActiveUpdate(): void {
   const target: UpdateTarget = isRemoteMode() ? 'backend' : 'client'
+
+  startUpdateFor(target)
+}
+
+/** Client affordances always update this app, including while connected remotely. */
+export function startClientUpdate(): void {
+  startUpdateFor('client')
+}
+
+function startUpdateFor(target: UpdateTarget): void {
   $updateOverlayTarget.set(target)
   $updateOverlayOpen.set(true)
+
+  const apply = target === 'backend' ? $backendUpdateApply.get() : $updateApply.get()
+
+  if (apply.applying || apply.stage === 'restart') {
+    return
+  }
 
   if (target === 'backend') {
     void applyBackendUpdate()
@@ -403,7 +490,7 @@ export async function checkBackendUpdates(): Promise<DesktopUpdateStatus | null>
   try {
     const status = mapBackendCheck(await checkWork4YouUpdate(true))
     $backendUpdateStatus.set(status)
-    maybeNotifyUpdateAvailable(status)
+    maybeNotifyUpdateAvailable(status, 'backend')
 
     return status
   } catch (error) {
@@ -465,10 +552,18 @@ export async function applyUpdates(opts: DesktopUpdateApplyOptions = {}): Promis
   }
 
   dismissNotification(UPDATE_TOAST_ID)
+  dismissNotification(UPDATE_RESULT_TOAST_ID)
   $updateApply.set({ ...IDLE, applying: true, stage: 'prepare', message: 'Starting update…' })
 
   try {
     const result = await bridge.apply(opts)
+
+    if (result?.cancelled) {
+      $updateApply.set(IDLE)
+      setUpdateOverlayOpen(false)
+
+      return result
+    }
 
     // CLI install with no staged updater: not an error — the user just runs
     // `work4you update` themselves. Land on a dedicated manual state so the
@@ -478,8 +573,8 @@ export async function applyUpdates(opts: DesktopUpdateApplyOptions = {}): Promis
         ...IDLE,
         applying: false,
         stage: 'manual',
-        message: result.command ?? 'work4you update',
-        command: result.command ?? 'work4you update'
+        message: result.message ?? result.command ?? translateNow('updates.manualInstallBody'),
+        command: result.command ?? null
       })
 
       return result
@@ -797,7 +892,7 @@ function ingestProgress(payload: DesktopUpdateProgress): void {
     message: payload.message,
     // Streamed log lines carry percent: null; keep the last milestone percent
     // (10/60/…) instead of resetting the bar to indeterminate on every line.
-    percent: payload.percent ?? current.percent,
+    percent: payload.percent ?? (payload.stage === current.stage ? current.percent : null),
     error: payload.error,
     // 'manual' carries the command to run in its message field.
     command: payload.stage === 'manual' ? payload.message : current.command,
@@ -809,6 +904,8 @@ let pollerStarted = false
 let backgroundTimer: ReturnType<typeof setInterval> | null = null
 let lastFocusAt = 0
 let connectionUnsub: (() => void) | null = null
+let progressUnsub: (() => void) | null = null
+let resultUnsub: (() => void) | null = null
 let lastConnectionMode: string | undefined
 
 /** Wire up background polling + progress streaming. Idempotent. */
@@ -824,10 +921,30 @@ export function startUpdatePoller(): void {
   }
 
   pollerStarted = true
+  progressUnsub = bridge.onProgress(ingestProgress)
+  let receivedResultEvent = false
+
+  const stopResults = bridge.onResult?.(result => {
+    receivedResultEvent = true
+    ingestPackagedUpdateResult(result)
+  })
+
+  resultUnsub = () => {
+    receivedResultEvent = true
+    stopResults?.()
+  }
+
+  void bridge
+    .result?.()
+    .then(result => {
+      if (!receivedResultEvent) {
+        ingestPackagedUpdateResult(result)
+      }
+    })
+    .catch(() => {})
   void checkUpdates()
   void checkBackendUpdates()
   void refreshDesktopVersion()
-  bridge.onProgress(ingestProgress)
 
   // The poller starts at mount, before the gateway connects — so the first
   // backend check above sees mode≠remote and no-ops. Re-check once the
@@ -862,6 +979,11 @@ export function stopUpdatePoller(): void {
 
   connectionUnsub?.()
   connectionUnsub = null
+  progressUnsub?.()
+  progressUnsub = null
+  resultUnsub?.()
+  resultUnsub = null
+  failedAttemptNotified = null
   lastConnectionMode = undefined
   window.removeEventListener('focus', onFocus)
   pollerStarted = false

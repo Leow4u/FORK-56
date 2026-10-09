@@ -71,6 +71,18 @@ def markdown_summary(data: dict, *, tag: str = "", mode: str = "") -> str:
         lines.append(f"| Install dir | {data['installDir']} |")
     if data.get("error"):
         lines.append(f"| Error | {data['error']} |")
+    for attempt in data.get("passes", []):
+        lines.extend(["", f"### {attempt['name']}", "",
+                      f"- Success: {attempt['success']}",
+                      f"- Artifact SHA256: `{attempt['artifact']['sha256']}`",
+                      f"- Packaged commit: `{attempt.get('probe', {}).get('commit', '-')}`"])
+        for key, value in attempt.get("timingsMs", {}).items():
+            lines.append(f"- {key}: {fmt_ms(value)}")
+    if data.get("scope"):
+        lines.extend(["", data["scope"], "",
+                      "Download, hashing, signature checks and fixtures are outside install/readiness timings. "
+                      "A same-release reinstall does not establish compatibility with a different next release. "
+                      "These probes do not exercise the update chip or a model response."])
     phases = data.get("phases") or []
     if phases:
         lines.extend(["", "### Phases", ""])

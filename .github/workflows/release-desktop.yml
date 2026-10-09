@@ -136,21 +136,17 @@ jobs:
         with:
           command: npm ci
 
-      # Cursor-model payload: CPython + venv + allowlist + Node + rg, relocated
-      # and probed before electron-builder copies it into extraResources.
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      # App-owned runtime is executed directly in resources/runtime and ships
+      # only inside the full installer.
       - name: Build prebuilt Windows runtime
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop-runtime.ps1 `
-            -OutDir apps/desktop/build/runtime `
-            -ZipOut (Join-Path (Get-Location) "dist\runtime-win-x64.zip")
-
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: windows-runtime
-          path: dist/runtime-win-x64.zip
-          if-no-files-found: error
+            -OutDir apps/desktop/build/runtime
 
       # apps/desktop `dist:win:nsis` (`npm run build && npm run builder -- --win nsis`).
       # `--publish never` is the same flag `npm run pack` already uses so
@@ -182,46 +178,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item $bundle.FullName dist/Work4You-Setup.exe
 
-      # Thin in-app NSIS. The fat Setup.exe above already contains the runtime.
-      # Swap win-unpacked's resources/runtime for the present:false stub, then
-      # pack NSIS only (--prepackaged skips doPack, so extraResources are not
-      # copied back). Same installer.nsh flags as before. Site downloads stay
-      # on Work4You-Setup.exe.
-      - name: Pack thin Windows update installer
-        working-directory: apps/desktop
-        shell: pwsh
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: |
-          $runtime = Join-Path 'release' 'win-unpacked' 'resources' 'runtime'
-          if (-not (Test-Path -LiteralPath $runtime)) {
-            throw "win-unpacked runtime missing: $runtime"
-          }
-          Remove-Item -LiteralPath $runtime -Recurse -Force
-          New-Item -ItemType Directory -Force -Path $runtime | Out-Null
-          $manifestPath = Join-Path $runtime 'manifest.json'
-          [System.IO.File]::WriteAllText($manifestPath, "{`"schemaVersion`":1,`"present`":false}`n")
-          $repoScripts = Join-Path (Resolve-Path '../..') 'scripts'
-          Copy-Item -LiteralPath (Join-Path $repoScripts 'deploy-desktop-runtime.ps1') -Destination (Join-Path $runtime 'deploy-desktop-runtime.ps1')
-          Copy-Item -LiteralPath (Join-Path $repoScripts 'deploy-desktop-runtime.sh') -Destination (Join-Path $runtime 'deploy-desktop-runtime.sh')
-          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-          if ($manifest.present -eq $true) { throw 'thin runtime stub must be present:false' }
-          # PowerShell splits an unquoted -c.directories.output=... into "-c" and
-          # ".directories.output=...", and electron-builder then opens that as a file.
-          npm run builder -- --prepackaged release/win-unpacked --win nsis --publish never '--config.directories.output=release-update'
-          if ($LASTEXITCODE -ne 0) { throw "thin NSIS pack failed: $LASTEXITCODE" }
-          $bundle = Get-ChildItem -Path 'release-update' -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.Extension -ieq '.exe' -and $_.Name -match 'win' } |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-          if (-not $bundle) {
-            Get-ChildItem -Recurse 'release-update' | Select-Object -ExpandProperty FullName
-            throw 'thin Windows NSIS installer not found under apps/desktop/release-update'
-          }
-          $dest = Join-Path (Resolve-Path '../..') 'dist/Work4You-Update.exe'
-          Copy-Item -LiteralPath $bundle.FullName -Destination $dest
-          Write-Host "staged $($bundle.Name) -> $dest ($($bundle.Length) bytes)"
-
       - name: Warn unsigned Windows installer
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_windows_signing == true }}
         run: echo "::warning::Work4You-Setup.exe is UNSIGNED. Do not ship this artifact."
@@ -231,11 +187,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        if: ${{ github.event_name == 'release' || inputs.skip_windows_signing != true }}
-        with:
-          python-version: "3.11"
 
       - name: Sign Windows installer (SSL.com eSigner)
         id: sign
@@ -251,14 +202,12 @@ jobs:
           ESIGNER_TOTP_SECRET: ${{ secrets.ESIGNER_TOTP_SECRET }}
         run: |
           python scripts/ci/sign_windows_esigner.py dist/Work4You-Setup.exe || exit /b 1
-          python scripts/ci/sign_windows_esigner.py dist/Work4You-Update.exe || exit /b 1
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_windows_signing == true && 'windows-installer-unsigned' || 'windows-installer' }}
           path: |
             dist/Work4You-Setup.exe
-            dist/Work4You-Update.exe
           if-no-files-found: error
 
   build-macos:
@@ -286,7 +235,6 @@ jobs:
           command: npm ci
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        if: ${{ github.event_name == 'release' || inputs.skip_macos_signing != true }}
         with:
           python-version: "3.11"
 
@@ -309,27 +257,9 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_macos_signing == true }}
         run: echo "::warning::Work4You.dmg will be UNSIGNED. Do not ship this artifact."
 
-      # Cursor-model payload: CPython + venv + allowlist + Node + rg, relocated
-      # and probed before electron-builder copies it into extraResources.
-      # macos-latest is typically arm64 → runtime-darwin-arm64.zip.
+      # Native-architecture app-owned runtime; no legacy standalone ZIP.
       - name: Build prebuilt macOS runtime
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          arch="$(uname -m | tr '[:upper:]' '[:lower:]')"
-          case "$arch" in
-            arm64|aarch64) zip_name=runtime-darwin-arm64.zip ;;
-            *) zip_name=runtime-darwin-x64.zip ;;
-          esac
-          bash scripts/build-desktop-runtime.sh \
-            --out-dir apps/desktop/build/runtime \
-            --zip-out "$(pwd)/dist/${zip_name}"
-
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: macos-runtime
-          path: dist/runtime-darwin-*.zip
-          if-no-files-found: error
+        run: bash scripts/build-desktop-runtime.sh --out-dir apps/desktop/build/runtime
 
       # apps/desktop `dist:mac:dmg` (`npm run build && npm run builder -- --mac dmg`).
       # `--publish never` is the same flag `npm run pack` already uses so
@@ -379,6 +309,13 @@ jobs:
           app="$(python3 scripts/ci/prepare_macos_signing.py --print-app apps/desktop/release)"
           codesign --verify --deep --strict "$app"
           codesign -dv --verbose=2 "$app" 2>&1 | python3 scripts/ci/prepare_macos_signing.py --check-codesign-dv
+          # CUA's vendor identity/profile carries automation and screen-capture
+          # entitlements. mac.signIgnore preserves this signed nested app;
+          # verify it was retained instead of silently replacing its identity.
+          cua="$(find "$app/Contents/Resources/runtime/computer-use" -type d -name CuaDriver.app -print -quit)"
+          test -n "$cua"
+          codesign --verify --deep --strict "$cua"
+          codesign -dv --verbose=2 "$cua" 2>&1 | python3 -c 'import sys; assert "TeamIdentifier=YCK386LBJ7" in sys.stdin.read().splitlines(), "CUA vendor signature was replaced"'
 
       # Run 35261884765: submit --wait --timeout 1200 uploaded the DMG
       # (id 3b7b6623-b2c4-4f6b-8ee6-ed71db5b7c42) then Apple was still
@@ -450,25 +387,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          extra=()
-          update_exe="installers/windows-installer/Work4You-Update.exe"
-          if [ ! -f "$update_exe" ]; then
-            echo "::error::Work4You-Update.exe is missing. In-app Update must not fall back to Work4You-Setup.exe."
-            exit 1
-          fi
-          extra+=(--update-exe "$update_exe")
-          if [ -f installers/windows-runtime/runtime-win-x64.zip ]; then
-            extra+=(--runtime-zip installers/windows-runtime/runtime-win-x64.zip)
-          fi
-          for zip in installers/macos-runtime/runtime-darwin-*.zip; do
-            if [ -f "$zip" ]; then
-              extra+=(--runtime-zip "$zip")
-            fi
-          done
           python scripts/ci/publish_desktop_release.py \
             --tag "${{ steps.tag.outputs.tag }}" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --exe installers/windows-installer/Work4You-Setup.exe \
-            --dmg installers/macos-installer/Work4You.dmg \
-            "${extra[@]}"
+            --dmg installers/macos-installer/Work4You.dmg
+
+      - name: Record the published release for install smoke
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${{ github.repository }}/releases/tags/$RELEASE_TAG" \
+            | jq --arg commit "$RELEASE_COMMIT" '. + {smokeCommit: $commit}' > desktop-release-smoke.json
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-release-smoke
+          path: desktop-release-smoke.json
+          if-no-files-found: error

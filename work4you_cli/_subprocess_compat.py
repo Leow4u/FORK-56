@@ -125,6 +125,15 @@ def resolve_node_command(name: str, argv: Sequence[str]) -> list[str]:
     Returns:
         A list suitable for passing to subprocess.Popen/run/call.
     """
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None and name in {"node", "npm", "npx", "corepack"}:
+        from work4you_constants import find_node_executable
+
+        bundled = find_node_executable(name)
+        if not bundled:
+            raise FileNotFoundError(f"{name} is missing from the app. Repair or update Work4You Desktop.")
+        return [bundled, *argv]
     resolved = shutil.which(name)
     if resolved:
         return [resolved, *argv]

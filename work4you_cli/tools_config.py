@@ -876,6 +876,21 @@ def _pip_install(
     Returns the ``subprocess.CompletedProcess`` from whichever tier succeeded
     (or the last failure for the caller to inspect).
     """
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        from tools.lazy_deps import _allow_lazy_installs, _venv_pip_install
+
+        if not _allow_lazy_installs():
+            return subprocess.CompletedProcess(
+                args, returncode=1, stdout="", stderr="Optional package installs are disabled in settings."
+            )
+        result = _venv_pip_install(tuple(args), timeout=timeout)
+        return subprocess.CompletedProcess(
+            args, returncode=0 if result.success else 1,
+            stdout=result.stdout, stderr=result.stderr,
+        )
+
     venv_root = Path(sys.executable).parent.parent
     uv_env = {**os.environ, "VIRTUAL_ENV": str(venv_root)}
 
@@ -1017,6 +1032,17 @@ def install_cua_driver(
     when the function returns. Supported on macOS, Windows, and Linux
     (Linux is alpha). Silently returns False on unsupported platforms.
     """
+    from work4you_cli.managed_runtime import bundled_capability_path, bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        command = bundled_capability_path("computerUse")
+        ready = command is not None and bool(_cua_driver_contract_status(str(command)).get("ready"))
+        if ready:
+            _print_success("    Computer Use is included with Work4You Desktop.")
+        else:
+            _print_warning("    Computer Use is unavailable. Repair or update Work4You Desktop.")
+        return ready
+
     import platform as _plat
     import shutil
     import subprocess
@@ -1791,6 +1817,11 @@ def _ensure_browser_use_cli(*, verbose_hints: bool = False) -> None:
     else:
         for line in str(message).splitlines():
             _print_warning(f"    {line[:200]}")
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        return
+    if not ok:
         if shutil.which("uvx"):
             _print_info("    Falling back to zero-install runs via `uvx browser-use`")
         else:
@@ -1856,6 +1887,12 @@ def _run_post_setup(post_setup_key: str):
             _print_success("    Chromium browser already installed, nothing to do")
             return
 
+        from work4you_cli.managed_runtime import bundled_runtime_root
+
+        if bundled_runtime_root() is not None:
+            _print_warning("    Chromium is missing from the app. Repair or update Work4You Desktop.")
+            return
+
         if _running_in_docker():
             _print_warning(
                 "    Chromium is missing but you're running in Docker."
@@ -1918,18 +1955,25 @@ def _run_post_setup(post_setup_key: str):
         _ensure_browser_use_cli(verbose_hints=True)
 
     elif post_setup_key == "camofox":
-        camofox_dir = PROJECT_ROOT / "node_modules" / "@askjo" / "camofox-browser"
+        from work4you_cli.managed_runtime import bundled_runtime_root
+        from work4you_constants import get_default_work4you_root
+
+        app_managed = bundled_runtime_root() is not None
+        install_root = get_default_work4you_root() / "extensions" / "camofox" if app_managed else PROJECT_ROOT
+        camofox_dir = install_root / "node_modules" / "@askjo" / "camofox-browser"
         _npm_bin = find_node_executable("npm")
         if camofox_dir.exists():
             _print_success("    Camofox already installed, nothing to do")
         elif _npm_bin:
             _print_info("    Installing Camofox browser server...")
             import subprocess
+            install_root.mkdir(parents=True, exist_ok=True)
+            install_args = ["--prefix", str(install_root), "--ignore-scripts", "@askjo/camofox-browser@^1.5.2"] if app_managed else []
             # Absolute npm path so .cmd shim executes on Windows.
             result = subprocess.run(
                 # --workspaces=false avoids resolving apps/desktop. See #38772.
-                [_npm_bin, "install", "--silent", "--workspaces=false"],
-                capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(PROJECT_ROOT),
+                [_npm_bin, "install", "--silent", "--workspaces=false", *install_args],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(install_root),
                 creationflags=_post_setup_no_window_flags(),
             )
             if result.returncode == 0:
@@ -1938,7 +1982,7 @@ def _run_post_setup(post_setup_key: str):
                 _print_warning("    npm install failed - run manually: npm install --workspaces=false")
         if camofox_dir.exists():
             _print_info("    Start the Camofox server:")
-            _print_info("      npx @askjo/camofox-browser")
+            _print_info(f"      npx --prefix \"{install_root}\" @askjo/camofox-browser" if app_managed else "      npx @askjo/camofox-browser")
             _print_info("    First run downloads the Camoufox engine (~300MB)")
             _print_info("    Or use Docker: docker run -p 9377:9377 -e CAMOFOX_PORT=9377 jo-inc/camofox-browser")
         elif not _npm_bin:

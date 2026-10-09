@@ -216,7 +216,10 @@ def activate_durable_lazy_target() -> None:
     security rationale). Never raises; a missing/empty target is a no-op.
     """
     if not os.environ.get("WORK4YOU_LAZY_INSTALL_TARGET", "").strip():
-        return
+        from work4you_cli.managed_runtime import bundled_runtime_root
+
+        if bundled_runtime_root() is None:
+            return
     try:
         from tools import lazy_deps
         lazy_deps.activate_durable_lazy_target()

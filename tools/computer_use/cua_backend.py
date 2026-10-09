@@ -965,6 +965,12 @@ def _candidate_cua_driver_commands(override: Optional[str] = None) -> List[str]:
         # driver missing instead of silently picking a different binary.
         return [configured]
 
+    from work4you_cli.managed_runtime import bundled_capability_path, bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        bundled = bundled_capability_path("computerUse")
+        return [str(bundled)] if bundled is not None else []
+
     candidates = [_CUA_DRIVER_DEFAULT_CMD]
     home = os.path.expanduser("~")
     if sys.platform == "win32":
@@ -1233,6 +1239,10 @@ def _maybe_repair_runtime_contract(contract: Dict[str, Any]) -> Dict[str, Any]:
     for the caller's error message.
     """
     global _contract_repair_attempted
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        return contract
     if contract.get("ready"):
         return contract
     if _contract_repair_attempted:
@@ -1265,6 +1275,10 @@ def _maybe_nudge_update() -> None:
     """Emit an update nudge at most once per process, off-thread so the
     (cached, ~20h) GitHub poll never blocks the first computer_use action."""
     global _update_checked
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        return
     if _update_checked:
         return
     _update_checked = True
@@ -1283,6 +1297,10 @@ def _maybe_nudge_update() -> None:
 
 
 def cua_driver_install_hint() -> str:
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        return "Computer Use is included with Work4You Desktop. Repair or update the app to restore it."
     if sys.platform == "win32":
         installer = (
             '  irm https://raw.githubusercontent.com/trycua/cua/main/'
@@ -2621,8 +2639,12 @@ class CuaDriverBackend(ComputerUseBackend):
         # (default on); when it's disabled or fails, ensure() raises
         # FeatureUnavailable carrying an actionable `uv pip install mcp==…`
         # hint, which surfaces via the backend-unavailable path in tool.py.
-        from tools.lazy_deps import ensure as _lazy_ensure
-        _lazy_ensure("tool.computer_use", prompt=False)
+        from work4you_cli.managed_runtime import bundled_runtime_root
+
+        if bundled_runtime_root() is None:
+            from tools.lazy_deps import ensure as _lazy_ensure
+
+            _lazy_ensure("tool.computer_use", prompt=False)
         # A just-installed package may not be importable until the import
         # machinery's caches are refreshed within this process.
         import importlib

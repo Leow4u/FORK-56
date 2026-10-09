@@ -1,17 +1,16 @@
 # ============================================================================
 # Build the prebuilt Windows desktop runtime for Setup.exe extraResources.
 # ============================================================================
-# Windows CI only. Filters the runtime allowlist, installs portable CPython
-# via uv, creates a venv, runs `uv sync --extra all --locked`, ships portable
-# Node + rg + uv, then relocates the tree to a temp HOME and probes
-# `import work4you_cli`.
+# Windows CI only. Builds portable Python with locked dependencies, compiled
+# interfaces and all standard desktop tools. The app runs this tree directly;
+# no HOME deployment or venv rewrite is needed on the user machine.
 # ============================================================================
 
 param(
     [string]$RepoRoot = "",
     [string]$OutDir = "",
     [string]$PythonVersion = "3.11",
-    [string]$NodeFullVersion = "22.20.0",
+    [string]$NodeFullVersion = "22.22.0",
     [string]$RipgrepVersion = "14.1.1",
     [string]$ZipOut = "",
     [switch]$SkipRelocateTest
@@ -32,27 +31,6 @@ $OutDir = [System.IO.Path]::GetFullPath($OutDir)
 $specPath = Join-Path $RepoRoot "work4you_cli\data\runtime_payload.json"
 if (-not (Test-Path -LiteralPath $specPath)) {
     throw "runtime allowlist missing: $specPath"
-}
-$spec = Get-Content -LiteralPath $specPath -Raw -Encoding UTF8 | ConvertFrom-Json
-
-function Test-RuntimeRelativePath {
-    param([string]$Rel)
-    $rel = $Rel.Replace('\', '/').Trim('/')
-    if (-not $rel) { return $false }
-    $parts = @($rel.Split('/') | Where-Object { $_ -and $_ -ne '.' })
-    if ($parts -contains '..') { return $false }
-    $top = $parts[0]
-    if ($spec.directories -contains $top) { return $true }
-    foreach ($prefix in @($spec.prefixes)) {
-        $p = [string]$prefix
-        if ($rel -eq $p -or $rel.StartsWith("$p/")) { return $true }
-        if ($p.StartsWith("$rel/")) { return $true }
-    }
-    if ($parts.Count -eq 1) {
-        if ($spec.files -contains $top) { return $true }
-        if ($spec.include_root_python_modules -and $top.EndsWith('.py')) { return $true }
-    }
-    return $false
 }
 
 function Get-WindowsArch {
@@ -91,27 +69,14 @@ $binHome = Join-Path $OutDir "bin"
 New-Item -ItemType Directory -Force -Path $payloadRoot, $binHome | Out-Null
 
 Write-Host "[runtime] copying allowlist from $RepoRoot"
-Get-ChildItem -LiteralPath $RepoRoot -Force | ForEach-Object {
-    $rel = $_.Name
-    if ($_.PSIsContainer) {
-        $children = Get-ChildItem -LiteralPath $_.FullName -Recurse -File -Force -ErrorAction SilentlyContinue
-        foreach ($file in $children) {
-            $inner = $file.FullName.Substring($RepoRoot.Length).TrimStart('\', '/')
-            if (-not (Test-RuntimeRelativePath $inner)) { continue }
-            $dest = Join-Path $payloadRoot $inner
-            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dest) | Out-Null
-            Copy-Item -LiteralPath $file.FullName -Destination $dest -Force
-        }
-    } else {
-        if (-not (Test-RuntimeRelativePath $rel)) { return }
-        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $payloadRoot $rel) -Force
-    }
-}
+$prepareScript = Join-Path $RepoRoot "scripts\ci\prepare_desktop_runtime.py"
+& python $prepareScript payload --runtime-dir $OutDir --repo-root $RepoRoot
+if ($LASTEXITCODE -ne 0) { throw "runtime source copy failed" }
 
 Write-Host "[runtime] installing CPython $PythonVersion"
 & $UvCmd python install $PythonVersion
 if ($LASTEXITCODE -ne 0) { throw "uv python install $PythonVersion failed" }
-$foundPython = & $UvCmd python find $PythonVersion
+$foundPython = & $UvCmd python find --managed-python --no-project $PythonVersion
 if ($LASTEXITCODE -ne 0 -or -not $foundPython) { throw "uv python find $PythonVersion failed" }
 $foundPython = $foundPython.Trim()
 $foundHome = Split-Path -Parent $foundPython
@@ -122,20 +87,12 @@ if (-not (Test-Path -LiteralPath $bundlePython)) {
     throw "copied CPython is missing python.exe"
 }
 
-Write-Host "[runtime] creating venv + sync --extra all --locked"
-$venvDir = Join-Path $payloadRoot "venv"
-$env:UV_PROJECT_ENVIRONMENT = $venvDir
-$env:VIRTUAL_ENV = $venvDir
-$env:UV_PYTHON = $bundlePython
-Push-Location $payloadRoot
-try {
-    & $UvCmd venv $venvDir --python $bundlePython
-    if ($LASTEXITCODE -ne 0) { throw "uv venv failed" }
-    & $UvCmd sync --extra all --locked
-    if ($LASTEXITCODE -ne 0) { throw "uv sync --extra all --locked failed" }
-} finally {
-    Pop-Location
-}
+Write-Host "[runtime] installing locked dependencies into portable Python"
+$prepareScript = Join-Path $RepoRoot "scripts\ci\prepare_desktop_runtime.py"
+& python $prepareScript python --runtime-dir $OutDir --repo-root $RepoRoot --uv $UvCmd
+if ($LASTEXITCODE -ne 0) { throw "portable Python dependency build failed" }
+& python $prepareScript interfaces --runtime-dir $OutDir --repo-root $RepoRoot
+if ($LASTEXITCODE -ne 0) { throw "interface build failed" }
 
 Copy-Item -LiteralPath $UvCmd -Destination (Join-Path $binHome "uv.exe") -Force
 
@@ -166,8 +123,13 @@ $rgExe = Get-ChildItem -Path $rgExtract -Recurse -Filter "rg.exe" | Select-Objec
 if (-not $rgExe) { throw "ripgrep zip missing rg.exe" }
 Copy-Item -LiteralPath $rgExe.FullName -Destination (Join-Path $binHome "rg.exe") -Force
 
-$deploySrc = Join-Path $RepoRoot "scripts\deploy-desktop-runtime.ps1"
-Copy-Item -LiteralPath $deploySrc -Destination (Join-Path $OutDir "deploy-desktop-runtime.ps1") -Force
+Write-Host "[runtime] preparing standard browser and computer-use"
+& python (Join-Path $RepoRoot "scripts\ci\build-desktop-capabilities.py") --runtime-dir $OutDir --repo-root $RepoRoot --uv $UvCmd
+if ($LASTEXITCODE -ne 0) { throw "browser/computer-use build failed" }
+& python (Join-Path $RepoRoot "scripts\ci\build-desktop-core-tools.py") --runtime-dir $OutDir --repo-root $RepoRoot
+if ($LASTEXITCODE -ne 0) { throw "core tools build failed" }
+& python (Join-Path $RepoRoot "scripts\ci\build-desktop-voice.py") --runtime-dir $OutDir --repo-root $RepoRoot
+if ($LASTEXITCODE -ne 0) { throw "voice/wake build failed" }
 
 $commit = $env:GITHUB_SHA
 if (-not $commit) {
@@ -189,23 +151,12 @@ $manifest = [ordered]@{
 $utf8 = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText((Join-Path $OutDir "manifest.json"), (($manifest | ConvertTo-Json -Compress:$false) + "`n"), $utf8)
 
+& python $prepareScript finalize --runtime-dir $OutDir --repo-root $RepoRoot
+if ($LASTEXITCODE -ne 0) { throw "runtime finalization failed" }
 if (-not $SkipRelocateTest) {
-    Write-Host "[runtime] relocate self-test"
-    $testHome = Join-Path $env:TEMP ("work4you-runtime-relocate-" + [guid]::NewGuid().ToString("n"))
-    try {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $deploySrc `
-            -BundleDir $OutDir `
-            -Work4YouHome $testHome `
-            -PinnedCommit $commit `
-            -PinnedBranch $branch
-        if ($LASTEXITCODE -ne 0) { throw "relocate deploy failed" }
-        $probe = Join-Path $testHome "work4you\venv\Scripts\python.exe"
-        $env:PYTHONPATH = Join-Path $testHome "work4you"
-        & $probe -c "import work4you_cli"
-        if ($LASTEXITCODE -ne 0) { throw "relocate probe failed" }
-    } finally {
-        Remove-Item -LiteralPath $testHome -Recurse -Force -ErrorAction SilentlyContinue
-    }
+    Write-Host "[runtime] verifying relocated runtime without deployment"
+    & python $prepareScript verify --runtime-dir $OutDir --repo-root $RepoRoot
+    if ($LASTEXITCODE -ne 0) { throw "runtime relocation verification failed" }
 }
 
 if ($ZipOut) {

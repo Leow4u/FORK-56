@@ -10059,6 +10059,11 @@ def cmd_update(args):
     runs the update, then restores stdio on the way out (even on
     ``sys.exit`` or unhandled exceptions).
     """
+    from work4you_cli.managed_runtime import delegate_desktop_update
+
+    if delegate_desktop_update(check=bool(getattr(args, "check", False))):
+        return
+
     from work4you_cli.config import (
         detect_install_method,
         format_docker_update_message,

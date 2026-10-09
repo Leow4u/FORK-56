@@ -2602,10 +2602,25 @@ export const ja = defineLocale({
     availableBodyNoChangelog:
       '新しいバージョンを利用できます。このインストール形式ではリリースノートは表示できません。',
     availableBodyInstaller:
-      'この更新は作業中にバックグラウンドでダウンロードされます。「更新」が表示されたらクリックしてください。アプリは少しの間閉じて、更新された状態で開きます。',
+      '作業を続けている間に、Work4You がバックグラウンドで更新をダウンロードします。準備ができたら「再起動して完了」を選択してください。更新をインストールすると、アプリが自動的に開きます。',
     availableBodyChrome:
-      '新しい Work4You アプリ更新の準備ができました。バックグラウンドでダウンロードして展開します。チップの準備ができたら「更新」をクリックしてください。既存のランタイムはそのままです。',
+      'Work4You がバックグラウンドでアプリの更新をダウンロードします。準備ができたら「再起動して完了」を選択してください。',
     updateNow: '今すぐ更新',
+    availableBodyMacInstaller:
+      'Work4You がバックグラウンドで更新をダウンロードします。準備ができたらインストーラーを開き、Work4You を終了し、アプリケーションにドラッグしてから再度開いてください。',
+    openInstaller: 'インストーラーを開く',
+    preparingDownload: 'ダウンロード中',
+    retryDownload: 'ダウンロードを再試行',
+    manualInstallTitle: '更新を完了する',
+    manualInstallBody:
+      'Work4You を終了し、インストーラー画面で新しいアプリをアプリケーションにドラッグしてから、Work4You を再度開いてください。',
+    completedTitle: '更新完了',
+    completedBody: 'Work4You が再起動し、更新されたアプリを使用できます。',
+    reviewFailure: '更新を確認',
+    showInstaller: 'インストーラーを表示',
+    showPreviousInstaller: '以前のインストーラーを表示',
+    recoveryUnavailable:
+      '保存されたインストーラーは利用できません。公式サイトから Work4You を再度ダウンロードしてください。',
     restartToFinish: '再起動して完了',
     maybeLater: '後で',
     moreChanges: count => `さらに ${count} 件の変更が含まれています。`,
@@ -2629,7 +2644,7 @@ export const ja = defineLocale({
       'リモートバックエンドが更新を適用して再起動します。復帰すると Work4You が自動的に再接続します。',
     applyingClose: 'このウィンドウは更新中に閉じ、その後 Work4You が自動的に再度開きます。',
     errorTitle: '更新が完了しませんでした',
-    errorBody: 'ご安心ください。何も失われていません。今すぐ再試行できます。',
+    errorBody: '更新が完了しませんでした。メッセージを確認して再試行してください。',
     blockerTitle: 'Work4You を更新するためにローカルプレビューを閉じますか？',
     blockerBody:
       '更新する前に、これらのローカルプレビューを停止する必要があります。ファイルが変更または削除されることはありません。',

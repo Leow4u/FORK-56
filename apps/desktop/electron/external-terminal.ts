@@ -48,7 +48,8 @@ export function windowsQuote(value: string): string {
  * PATH is deliberately dropped: the script runs inside a login shell that
  * already has the user's own PATH, and the desktop's PATH (assembled for a
  * headless child) is the wrong answer for an interactive terminal. The Work4You
- * command is invoked by absolute path, so nothing here depends on PATH.
+ * command is invoked by absolute path. App-owned runtimes are the exception:
+ * their bundled Node, Git and CLI tools must remain reachable in this shell.
  */
 export function terminalScriptEnv(
   backendEnv: Record<string, string | undefined> = {},
@@ -57,7 +58,12 @@ export function terminalScriptEnv(
   const out: Record<string, string> = {}
 
   for (const [key, value] of Object.entries(backendEnv)) {
-    if (key.toUpperCase() === 'PATH' || value === undefined || value === '') {
+    const clearHostPython = Boolean(backendEnv.WORK4YOU_BUNDLED_RUNTIME) && ['PYTHONHOME', 'VIRTUAL_ENV'].includes(key)
+    if (
+      (key.toUpperCase() === 'PATH' && !backendEnv.WORK4YOU_BUNDLED_RUNTIME) ||
+      value === undefined ||
+      (value === '' && !clearHostPython)
+    ) {
       continue
     }
 
@@ -99,7 +105,7 @@ export function buildTerminalScript({ command, args, cwd, env = {}, platform = p
   return [
     '#!/bin/sh',
     `cd ${posixQuote(cwd)} || exit 1`,
-    ...entries.map(([key, value]) => `export ${key}=${posixQuote(value)}`),
+    ...entries.map(([key, value]) => (value === '' ? `unset ${key}` : `export ${key}=${posixQuote(value)}`)),
     `exec ${[command, ...args].map(posixQuote).join(' ')}`,
     ''
   ].join('\n')

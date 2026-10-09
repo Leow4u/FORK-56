@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 
 import { test } from 'vitest'
 
-import { mergeActiveWork, normalizeActiveWork, quitPromptFor } from './quit-guard'
+import { confirmActiveWorkBeforeUpdate, mergeActiveWork, normalizeActiveWork, quitPromptFor } from './quit-guard'
 
 test('normalizeActiveWork drops junk and keeps the count at least the title count', () => {
   assert.deepEqual(normalizeActiveWork(null), { count: 0, titles: [] })
@@ -59,4 +59,31 @@ test('quitPromptFor speaks singular for one chat', () => {
   assert.ok(prompt)
   assert.equal(prompt.message, 'Work4You is still working on 1 chat.')
   assert.ok(prompt.detail.includes('mid-turn'))
+})
+
+test('updates require consent for active work before creating a handoff', async () => {
+  const reports = [{ count: 1, titles: ['Write report'] }]
+  let prompts = 0
+  assert.equal(
+    await confirmActiveWorkBeforeUpdate(reports, async prompt => {
+      prompts += 1
+      assert.match(prompt.detail, /Write report/)
+      return false
+    }),
+    false
+  )
+  assert.equal(prompts, 1)
+  assert.equal(await confirmActiveWorkBeforeUpdate(reports, async () => true), true)
+  assert.equal(
+    await confirmActiveWorkBeforeUpdate(reports, async () => {
+      throw new Error('window closed')
+    }),
+    false
+  )
+  assert.equal(
+    await confirmActiveWorkBeforeUpdate([], async () => {
+      throw new Error('must not prompt')
+    }),
+    true
+  )
 })

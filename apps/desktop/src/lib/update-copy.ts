@@ -19,15 +19,20 @@ export interface UpdateCopyStrings {
   availableBodyNoChangelog: string
   availableBodyInstaller: string
   availableBodyChrome: string
+  availableBodyMacInstaller: string
 }
 
 export interface UpdateFinalizeCopy {
   restartToFinish: string
   updateNow: string
+  openInstaller: string
+  preparing: string
+  retryDownload: string
 }
 
 export interface ResolveUpdateFinalizeInput {
   channel?: UpdateChannel
+  platform?: string
   prefetchReady?: boolean
   prefetchError?: string | null
   prefetchPercent?: number | null
@@ -45,6 +50,7 @@ export interface ResolveUpdateCopyInput {
   shownItems: number
   copy: UpdateCopyStrings
   channel?: UpdateChannel
+  platform?: string
 }
 
 export interface UpdateCopyResult {
@@ -52,7 +58,13 @@ export interface UpdateCopyResult {
   body: string
 }
 
-export function resolveUpdateCopy({ target, shownItems, copy, channel }: ResolveUpdateCopyInput): UpdateCopyResult {
+export function resolveUpdateCopy({
+  target,
+  shownItems,
+  copy,
+  channel,
+  platform
+}: ResolveUpdateCopyInput): UpdateCopyResult {
   const title = target === 'backend' ? copy.availableTitleBackend : copy.availableTitle
 
   if (channel === 'chrome' && target === 'client') {
@@ -60,7 +72,7 @@ export function resolveUpdateCopy({ target, shownItems, copy, channel }: Resolve
   }
 
   if (channel === 'installer' && target === 'client') {
-    return { title, body: copy.availableBodyInstaller }
+    return { title, body: platform === 'darwin' ? copy.availableBodyMacInstaller : copy.availableBodyInstaller }
   }
 
   const body =
@@ -76,6 +88,7 @@ export function resolveUpdateCopy({ target, shownItems, copy, channel }: Resolve
 export function resolveUpdateFinalizeAction({
   channel,
   copy,
+  platform,
   prefetchError,
   prefetchPercent,
   prefetchReady
@@ -87,16 +100,19 @@ export function resolveUpdateFinalizeAction({
   }
 
   if (prefetchReady) {
-    return { disabled: false, label: copy.restartToFinish }
+    return {
+      disabled: false,
+      label: platform === 'darwin' && channel === 'installer' ? copy.openInstaller : copy.restartToFinish
+    }
   }
 
   if (prefetchError) {
-    return { disabled: false, label: copy.updateNow }
+    return { disabled: false, label: copy.retryDownload }
   }
 
   if (typeof prefetchPercent === 'number' && Number.isFinite(prefetchPercent)) {
     return { disabled: true, label: `${Math.max(0, Math.min(100, Math.round(prefetchPercent)))}%` }
   }
 
-  return { disabled: true, label: copy.updateNow }
+  return { disabled: true, label: copy.preparing }
 }

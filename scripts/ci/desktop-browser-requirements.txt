@@ -1,0 +1,5 @@
+# The Browser Use CLI delegates execution to this harness. Its shared
+# dependencies (Pillow, websockets, httpx, typing-extensions) come from uv.lock.
+browser-harness==0.1.13 --hash=sha256:2491459e4bfc0ee8aea22dc6c4680fc0f791b7ba553446323c50d2883449d769
+cdp-use==1.4.5 --hash=sha256:8f8e2435e3a20e4009d2974144192cf3c132f6c2971338e156198814d9b91ecb
+fetch-use==0.4.0 --hash=sha256:b7885f2907e7920373fa75dcdb00afd6e603a25a9ee2151aa2881f5465e1a2c0

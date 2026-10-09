@@ -445,6 +445,14 @@ contextBridge.exposeInMainWorld('work4youDesktop', {
   updates: {
     check: () => ipcRenderer.invoke('work4you:updates:check'),
     apply: opts => ipcRenderer.invoke('work4you:updates:apply', opts),
+    result: () => ipcRenderer.invoke('work4you:updates:result'),
+    openRecoveryInstaller: opts => ipcRenderer.invoke('work4you:updates:recovery:open', opts),
+    onResult: callback => {
+      const listener = (_event, result) => callback(result)
+      ipcRenderer.on('work4you:updates:result-changed', listener)
+
+      return () => ipcRenderer.removeListener('work4you:updates:result-changed', listener)
+    },
     getBranch: () => ipcRenderer.invoke('work4you:updates:branch:get'),
     setBranch: name => ipcRenderer.invoke('work4you:updates:branch:set', name),
     onProgress: callback => {

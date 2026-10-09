@@ -1,13 +1,9 @@
-"""Prebuilt desktop runtime (Cursor-model Setup / DMG payload).
+"""Desktop runtime packaging and compatibility with older deployed bundles.
 
-Consumer Windows Setup.exe and macOS Work4You.app ship a CI-built tree:
-portable CPython, a venv already synced with ``uv sync --extra all --locked``,
-the runtime allowlist, portable Node, and rg. NSIS (Windows) or first-open
-deploy (macOS) copies that tree into ``WORK4YOU_HOME`` and rewrites
-``pyvenv.cfg`` so the existing desktop resolver works without a GitHub ZIP or
-on-device ``uv sync``.
-
-Git / CLI / ``irm | iex`` / ``curl | bash`` installs are unchanged.
+New app-owned bundles run their portable Python directly inside the app;
+dependencies are installed into that interpreter at build time, without a
+venv whose configuration points back at the builder. Legacy deployment
+helpers remain available for the older HOME-owned layout only.
 """
 
 from __future__ import annotations
@@ -36,6 +32,7 @@ from work4you_constants import venv_bin_dir
 
 MANIFEST_FILENAME = "manifest.json"
 MANIFEST_SCHEMA_VERSION = 1
+APP_OWNED_LAYOUT = "app-owned"
 BOOTSTRAP_MARKER_FILENAME = ".work4you-bootstrap-complete"
 BOOTSTRAP_MARKER_SCHEMA_VERSION = 1
 DEPLOY_SCRIPT_FILENAME = "deploy-desktop-runtime.ps1"
@@ -243,6 +240,47 @@ def is_prebuilt_runtime_root(bundle_dir: Path) -> bool:
     if not is_present_runtime_manifest(read_runtime_manifest(root)):
         return False
     return (root / "work4you").is_dir() and (root / "python").is_dir()
+
+
+def write_app_runtime_launchers(bundle_dir: Path, *, windows: bool) -> list[Path]:
+    """Write app-local CLI launchers that keep working after the app moves.
+
+    These launchers set PATH only for their own process tree and preserve the
+    data directory. The desktop can expose an optional shim pointing at them.
+    """
+    root = Path(bundle_dir)
+    destination = root / "bin"
+    destination.mkdir(parents=True, exist_ok=True)
+    written = []
+    for name, module in (("work4you", "work4you_cli.main"), ("work4you-acp", "acp_adapter.entry")):
+        if windows:
+            path = destination / f"{name}.cmd"
+            contents = (
+                "@echo off\nsetlocal\n"
+                'set "WORK4YOU_BUNDLED_RUNTIME=%~dp0.."\n'
+                'set "PYTHONPATH=%~dp0..\\work4you"\n'
+                'set "PATH=%~dp0;%~dp0..\\node;%~dp0..\\python;%~dp0..\\git\\cmd;%~dp0..\\git\\bin;%~dp0..\\git\\usr\\bin;%PATH%"\n'
+                'set "PYTHONHOME="\nset "VIRTUAL_ENV="\n'
+                'set "PYTHONNOUSERSITE=1"\nset "PYTHONDONTWRITEBYTECODE=1"\n'
+                f'"%~dp0..\\python\\python.exe" -s -B -m {module} %*\n'
+                "exit /b %errorlevel%\n"
+            )
+        else:
+            path = destination / name
+            contents = (
+                "#!/bin/sh\nset -eu\n"
+                'WORK4YOU_BUNDLED_RUNTIME=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)\n'
+                'PYTHONPATH="$WORK4YOU_BUNDLED_RUNTIME/work4you"\n'
+                'PATH="$WORK4YOU_BUNDLED_RUNTIME/bin:$WORK4YOU_BUNDLED_RUNTIME/node/bin:$WORK4YOU_BUNDLED_RUNTIME/python/bin:${PATH:-/usr/bin:/bin}"\n'
+                "export WORK4YOU_BUNDLED_RUNTIME PYTHONPATH PATH\n"
+                "export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1\n"
+                "unset PYTHONHOME VIRTUAL_ENV\n"
+                f'exec "$WORK4YOU_BUNDLED_RUNTIME/python/bin/python3" -s -B -m {module} "$@"\n'
+            )
+        path.write_text(contents, encoding="utf-8", newline="\r\n" if windows else "\n")
+        path.chmod(0o755)
+        written.append(path)
+    return written
 
 
 def runtime_zip_name(arch: str = "x64", *, platform: str | None = None) -> str:
@@ -521,6 +559,12 @@ def apply_prebuilt_runtime_bundle(
     bundle = Path(bundle_dir)
     if not is_prebuilt_runtime_root(bundle):
         raise ValueError(f"not a prebuilt runtime bundle: {bundle}")
+
+    if (read_runtime_manifest(bundle) or {}).get("layout") == APP_OWNED_LAYOUT:
+        raise ValueError(
+            "This runtime belongs to the desktop application. Update or repair "
+            "the app instead of deploying its runtime into WORK4YOU_HOME."
+        )
 
     home = Path(work4you_home)
     home.mkdir(parents=True, exist_ok=True)

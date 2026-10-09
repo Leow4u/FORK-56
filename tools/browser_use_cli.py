@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -119,6 +120,16 @@ def _base_subprocess_env() -> dict:
     env.pop("PYTHONPATH", None)
     env.pop("PYTHONHOME", None)
     env.setdefault("ANONYMIZED_TELEMETRY", "false")
+    from work4you_cli.managed_runtime import bundled_capability_path, bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        from work4you_constants import get_work4you_home
+
+        env["BH_HOME"] = str(get_work4you_home() / "cache" / "browser-harness")
+        chrome = bundled_capability_path("browser", "executable")
+        if chrome is not None:
+            env["BH_CHROME_PATH"] = str(chrome)
+            env["CHROME_PATH"] = str(chrome)
     return env
 
 
@@ -290,6 +301,13 @@ def _find_cli() -> Optional[List[str]]:
     and cover Desktop/TUI workers that spawn with a minimal PATH. The uvx
     zero-install path (same probe order) is the final fallback.
     """
+    from work4you_cli.managed_runtime import bundled_runtime_manifest, bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        capability = bundled_runtime_manifest().get("capabilities", {}).get("browserUse", {})
+        if capability.get("module") == "browser_harness.run":
+            return [sys.executable, "-m", "browser_harness.run"]
+        return None
     probe_paths = (_managed_bin_dir(), None, _user_local_bin_dir())
     for probe_path in probe_paths:
         if probe_path is None or probe_path:
@@ -314,6 +332,13 @@ def install_cli(timeout_s: int = 600) -> Tuple[bool, str]:
 
     Returns ``(ok, message)`` — never raises.
     """
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    if bundled_runtime_root() is not None:
+        if _find_cli():
+            return True, "Browser Use is included with Work4You Desktop."
+        return False, "The bundled browser is unavailable. Repair or update Work4You Desktop."
+
     # MANAGED-FIRST: only the managed copy short-circuits the install. A
     # browser-use found on PATH is a user-level side install — it must NOT
     # prevent provisioning the canonical Work4You-managed copy, or resolution
@@ -501,6 +526,16 @@ def _resolve_backend_cdp(
         logger.debug("Cloud provider lookup failed: %s", e)
         provider = None
     if provider is None:
+        from work4you_cli.managed_runtime import bundled_runtime_root
+
+        if bundled_runtime_root() is not None:
+            from tools.bundled_browser import connect_bundled_browser
+
+            try:
+                connect_bundled_browser(env, task_id=task_id, session_name=session_name)
+                env[_PRIVATE_BROWSER_SENTINEL] = "1"
+            except (OSError, RuntimeError) as exc:
+                return f"The local browser could not start: {exc}"
         return None
 
     # Browser Use direct-API configs: the CLI talks to Browser Use cloud
@@ -648,6 +683,10 @@ def browser_exec(
         )
     except OSError as e:
         return tool_error(f"Failed to launch browser-use CLI: {e}")
+    finally:
+        from tools.bundled_browser import release_bundled_browser
+
+        release_bundled_browser(env)
 
     result = {
         "success": proc.returncode == 0,

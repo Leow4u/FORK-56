@@ -91,3 +91,18 @@ export function quitPromptFor(work: ActiveWork, quittingForHandoff: boolean): nu
       work.count === 1 ? 'Work4You is still working on 1 chat.' : `Work4You is still working on ${work.count} chats.`
   }
 }
+
+/** Ask before a handoff exists: the normal quit guard deliberately bypasses
+ * an already-started updater, which is too late to protect active work. */
+export async function confirmActiveWorkBeforeUpdate(
+  reports: Iterable<ActiveWork>,
+  confirm: (prompt: QuitPrompt) => Promise<boolean>
+): Promise<boolean> {
+  const prompt = quitPromptFor(mergeActiveWork(reports), false)
+  if (!prompt) return true
+  try {
+    return await confirm(prompt)
+  } catch {
+    return false
+  }
+}

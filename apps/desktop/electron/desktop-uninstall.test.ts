@@ -94,6 +94,18 @@ test('resolveRemovableAppPath returns null for an unrecognized Windows dir', () 
   assert.equal(resolveRemovableAppPath('C:\\Temp\\foo\\Work4You.exe', 'win32'), null)
 })
 
+test('a managed Windows install recognizes a custom destination only with its runtime and native uninstaller', () => {
+  const executable = 'D:\\Apps\\My Assistant\\Work4You.exe'
+  const managed = { runtimeRoot: 'D:\\Apps\\My Assistant\\resources\\runtime', uninstallerExists: true }
+  assert.equal(resolveRemovableAppPath(executable, 'win32', {}, managed), 'D:\\Apps\\My Assistant')
+  assert.equal(resolveRemovableAppPath(executable, 'win32', {}, { ...managed, uninstallerExists: false }), null)
+  assert.equal(
+    resolveRemovableAppPath(executable, 'win32', {}, { ...managed, runtimeRoot: 'D:\\unrelated\\runtime' }),
+    null
+  )
+  assert.equal(resolveRemovableAppPath('D:\\Apps\\My Assistant\\other.exe', 'win32', {}, managed), null)
+})
+
 test('resolveRemovableAppPath uses APPIMAGE on Linux when set', () => {
   assert.equal(
     resolveRemovableAppPath('/tmp/.mount_Work4YouXXXX/work4you', 'linux', {
@@ -253,4 +265,24 @@ test('buildWindowsCleanupScript omits PYTHONPATH + rmdir when not needed (gui, n
 
   assert.doesNotMatch(script, /rmdir/)
   assert.doesNotMatch(script, /set "PYTHONPATH=/)
+})
+
+test('Windows packaged removal delegates registration and files to NSIS after data cleanup', () => {
+  const script = buildWindowsCleanupScript({
+    desktopPid: 2,
+    pythonExe: 'C:\\Work4You\\resources\\runtime\\python\\python.exe',
+    pythonPath: 'C:\\Work4You\\resources\\runtime\\work4you',
+    agentRoot: 'C:\\Work4You\\resources\\runtime\\work4you',
+    uninstallArgs: ['-m', 'work4you_cli.uninstall', '--mode', 'lite'],
+    appPath: 'C:\\Work4You',
+    work4youHome: 'C:\\Users\\Person\\AppData\\Local\\work4you',
+    uninstallerExe: 'C:\\Work4You\\Uninstall Work4You.exe'
+  })
+
+  const cleanup = script.indexOf('"-m" "work4you_cli.uninstall"')
+  const uninstall = script.indexOf('start "" /wait "C:\\Work4You\\Uninstall Work4You.exe" /S')
+  assert.ok(cleanup >= 0 && uninstall > cleanup)
+  assert.match(script, /cd \/d "%TEMP%"/)
+  assert.match(script, /if errorlevel 1 exit \/b %errorlevel%/)
+  assert.doesNotMatch(script, /rmdir/)
 })

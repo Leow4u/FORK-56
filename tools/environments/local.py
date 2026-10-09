@@ -736,6 +736,13 @@ def build_subprocess_env(
 
 def _find_bash() -> str:
     """Find bash for command execution."""
+    from work4you_cli.managed_runtime import bundled_capability_path, bundled_runtime_root
+
+    bundled_shell = bundled_capability_path("shell")
+    if bundled_shell is not None:
+        return str(bundled_shell)
+    if _IS_WINDOWS and bundled_runtime_root() is not None:
+        raise RuntimeError("The bundled terminal is missing. Repair or update Work4You Desktop.")
     if not _IS_WINDOWS:
         return (
             shutil.which("bash")

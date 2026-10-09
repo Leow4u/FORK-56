@@ -871,6 +871,15 @@ def find_node_executable(command: str) -> str | None:
     tree exists but cannot be healed, returns ``None`` instead of falling back
     to system npm on PATH.
     """
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    bundle = bundled_runtime_root()
+    if bundle is not None and command in {"node", "npm", "npx", "corepack"}:
+        if sys.platform == "win32":
+            candidate = bundle / "node" / (command + (".exe" if command == "node" else ".cmd"))
+        else:
+            candidate = bundle / "node" / "bin" / command
+        return str(candidate) if candidate.is_file() else None
     managed = find_work4you_node_executable(command)
     if managed:
         return managed
@@ -885,6 +894,13 @@ def with_work4you_node_path(env: dict[str, str] | None = None) -> dict[str, str]
     existing = merged.get("PATH", "")
     parts = [p for p in existing.split(os.pathsep) if p]
     managed = [str(path) for path in iter_work4you_node_dirs() if path.is_dir()]
+    from work4you_cli.managed_runtime import bundled_runtime_root
+
+    bundle = bundled_runtime_root()
+    if bundle is not None:
+        node_dir = bundle / "node" if sys.platform == "win32" else bundle / "node" / "bin"
+        if node_dir.is_dir():
+            managed.insert(0, str(node_dir))
     for entry in reversed(managed):
         if entry not in parts:
             parts.insert(0, entry)

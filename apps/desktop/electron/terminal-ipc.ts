@@ -22,6 +22,7 @@ export interface TerminalIpcDeps {
   activeSshTerminalTarget: () => unknown
   ensureBackend: () => Promise<unknown>
   getSshConnectionState: (scope: string) => undefined | { remotePlatform?: string }
+  localRuntimeEnv?: () => NodeJS.ProcessEnv
 }
 
 export interface TerminalIpcApi {
@@ -36,7 +37,8 @@ export function registerTerminalIpc({
   rememberLog,
   activeSshTerminalTarget,
   ensureBackend,
-  getSshConnectionState
+  getSshConnectionState,
+  localRuntimeEnv = () => ({})
 }: TerminalIpcDeps): TerminalIpcApi {
   const terminalSessions = new Map()
 
@@ -136,7 +138,7 @@ export function registerTerminalIpc({
   }
 
   function terminalShellEnv() {
-    const env = { ...process.env }
+    const env = { ...process.env, ...localRuntimeEnv() }
 
     // Electron is commonly launched through `npm run dev`; do not leak npm's
     // managed prefix into a user's interactive shell (nvm/proto warn loudly).

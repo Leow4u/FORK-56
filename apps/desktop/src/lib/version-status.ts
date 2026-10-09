@@ -67,13 +67,23 @@ export function formatPrefetchPercent(percent: number | null | undefined): strin
   return `${Math.max(0, Math.min(100, Math.round(percent)))}%`
 }
 
-/** Short pill on the account chip: percent while Stage A runs, otherwise Update. */
+/** The chip names the pending action; readiness must never look like another download. */
 export function resolveUpdateChipLabel(opts: {
   applying: boolean
   restarting: boolean
   prefetchPercent?: number | null
   prefetchReady?: boolean
-  copy: { restart: string; update: string }
+  prefetchError?: string | null
+  channel?: UpdateChannel
+  platform?: string
+  copy: {
+    restart: string
+    update: string
+    restartToFinish: string
+    openInstaller: string
+    preparing: string
+    retryDownload: string
+  }
 }): string {
   if (opts.restarting) {
     return opts.copy.restart
@@ -83,15 +93,25 @@ export function resolveUpdateChipLabel(opts: {
     return opts.copy.update
   }
 
+  if (opts.prefetchReady) {
+    return opts.platform === 'darwin' && opts.channel === 'installer'
+      ? opts.copy.openInstaller
+      : opts.copy.restartToFinish
+  }
+
+  if (opts.prefetchError) {
+    return opts.copy.retryDownload
+  }
+
   if (!opts.prefetchReady) {
     const percent = formatPrefetchPercent(opts.prefetchPercent)
 
     if (percent) {
-      return percent
+      return `${opts.copy.preparing} ${percent}`
     }
   }
 
-  return opts.copy.update
+  return opts.channel === 'installer' || opts.channel === 'chrome' ? opts.copy.preparing : opts.copy.update
 }
 
 export function resolveVersionStatus({
