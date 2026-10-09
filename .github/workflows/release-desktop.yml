@@ -209,6 +209,7 @@ jobs:
           path: |
             dist/Work4You-Setup.exe
           if-no-files-found: error
+          retention-days: 7
 
   build-macos:
     needs: gate
@@ -334,6 +335,7 @@ jobs:
           name: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_macos_signing == true && 'macos-installer-unsigned' || 'macos-installer' }}
           path: dist/Work4You.dmg
           if-no-files-found: error
+          retention-days: 7
 
   publish:
     # Never publish when Windows or macOS signing was skipped or did not
@@ -409,3 +411,4 @@ jobs:
           name: desktop-release-smoke
           path: desktop-release-smoke.json
           if-no-files-found: error
+          retention-days: 7
