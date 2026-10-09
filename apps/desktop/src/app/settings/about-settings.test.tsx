@@ -71,7 +71,7 @@ describe('About settings', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove the app' }))
     expect(screen.getByText('Remove the app?')).toBeTruthy()
-    expect(screen.getByText(/Your agent, chats, and settings stay/)).toBeTruthy()
+    expect(screen.getByText(/Your chats and settings stay/)).toBeTruthy()
     expect(run).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove the app' }))
