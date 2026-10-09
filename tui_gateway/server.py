@@ -1684,12 +1684,41 @@ def register_live_transport(transport: Transport | None) -> None:
         return
     with _live_transports_lock:
         _live_transports.add(transport)
+    _note_scale_to_zero_activity()
 
 
 def unregister_live_transport(transport: Transport | None) -> None:
     """Stop tracking a transport (call on disconnect). Idempotent."""
     with _live_transports_lock:
         _live_transports.discard(transport)
+    _note_scale_to_zero_activity()
+
+
+def _scale_to_zero_busy() -> bool:
+    """A running agent turn keeps the Cloud VM awake; an idle open client does not."""
+    with _sessions_lock:
+        return any(session.get("running") for session in _sessions.values())
+
+
+_scale_to_zero_probe_registered = False
+
+
+def _note_scale_to_zero_activity() -> None:
+    """Stamp activity for the gateway's idle watcher (no-op unless opted in).
+
+    Imported lazily: ``gateway`` pulls in its config/session modules, which a
+    plain TUI start does not otherwise load.
+    """
+    global _scale_to_zero_probe_registered
+    try:
+        from gateway import scale_to_zero
+
+        if not _scale_to_zero_probe_registered:
+            _scale_to_zero_probe_registered = True
+            scale_to_zero.register_busy_probe(_scale_to_zero_busy)
+        scale_to_zero.note_activity()
+    except Exception:  # noqa: BLE001 - idle tracking must never break a client
+        logger.debug("scale-to-zero activity stamp failed", exc_info=True)
 
 
 def _broadcast_global_event(event: str, payload: dict | None = None) -> None:
@@ -7934,6 +7963,7 @@ def _inflight_text(value: Any) -> str:
 
 
 def _start_inflight_turn(session: dict, text: Any) -> None:
+    _note_scale_to_zero_activity()
     now = time.time()
     session["inflight_turn"] = {
         "assistant": "",
@@ -8139,6 +8169,7 @@ def _maybe_schedule_auto_continue(sid: str, session: dict, session_key: str) -> 
                 return
             session["running"] = True
             session["last_active"] = time.time()
+            _note_scale_to_zero_activity()
             # Hand this turn its own marker inputs (read back by
             # _run_prompt_submit): count the attempt so a crash during the
             # continuation trips the breaker, and re-record the ORIGINAL
@@ -8453,6 +8484,7 @@ def _drain_queued_prompt(rid, sid: str, session: dict) -> bool:
         if not queued_prompts:
             session.pop("queued_prompts", None)
         session["running"] = True
+        _note_scale_to_zero_activity()
         if queued.get("transport") is not None:
             session["transport"] = queued["transport"]
     use_compute_host = _session_uses_compute_host(session)
@@ -9972,6 +10004,7 @@ def _maybe_fire_tui_loop_tick(sid: str, session: dict) -> None:
         if session.get("running"):
             return  # busy — stays due, next poll retries
         session["running"] = True
+    _note_scale_to_zero_activity()
 
     wakeup = mgr.fire_tick()
     if not wakeup:

@@ -21,10 +21,14 @@ Design constraints (decisions.md):
   - Per-instance enable is gated SOLELY by the NAS "Labs" toggle, carried to the
     gateway as the ``WORK4YOU_SCALE_TO_ZERO`` env stamp (D11/Q8=A). NOT a user
     config key; ``scale_to_zero.idle_timeout_minutes`` IS config.yaml (D2).
-  - Arm only when messaging is relay-only or absent (D1/F6) AND a wakeUrl is
-    registered (§3.4(1)) AND the flag is set.
+  - Arm when a wakeUrl is registered (§3.4(1)) AND the flag is set.
+  - A direct messaging platform (D1/F6) holds the machine awake while it is
+    connected or retrying a blip. One that has failed long enough to be flagged
+    NEEDS_ATTENTION, or is paused, holds no socket and no longer does.
   - Idle = no in-flight agent turn AND no inbound for N min AND no live
-    background work (D2/D3/F7).
+    background work AND no enabled cron job (D2/D3/F7). Inbound includes the
+    dashboard activity stamp: web/TUI chat runs in the dashboard process, which
+    the gateway cannot see.
   - The quiesce uses ``go_dormant()`` (socket closed + supervisor preserved),
     NEVER the stop/restart drain or ``disconnect()`` (F12/F14). The process stays
     alive; Fly freezes+resumes it.
@@ -42,7 +46,10 @@ import json
 import logging
 import os
 import socket
-from typing import Any, Iterable, Optional
+import threading
+import time
+from pathlib import Path
+from typing import Any, Callable, Iterable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -115,20 +122,16 @@ def _platform_name(platform: Any) -> str:
     return str(value).strip().lower()
 
 
-def should_arm(
-    *,
-    enabled: bool,
-    relay_only_or_absent: bool,
-    wake_url: Optional[str],
-) -> bool:
-    """Whether to start the idle watcher at all (D1/D11/§3.4(1)).
+def should_arm(*, enabled: bool, wake_url: Optional[str]) -> bool:
+    """Whether to start the idle watcher at all (D11/§3.4(1)).
 
-    ALL must hold: the Labs flag is on, messaging is relay-only/absent, and a
-    wakeUrl is registered (a suspended instance with no reachable wake target is
-    a black hole — §3.4(1)). Any unmet -> the watcher never starts (no idle
-    timer, no dormancy), so a non-opted instance behaves exactly as today.
+    Both must hold: the Labs flag is on and a wakeUrl is registered (a suspended
+    instance with no reachable wake target is a black hole — §3.4(1)). Otherwise
+    the watcher never starts, so a non-opted instance behaves exactly as today.
+    Direct messaging platforms are checked on every idle tick instead: one can
+    connect, or give up, long after startup.
     """
-    return bool(enabled) and bool(relay_only_or_absent) and bool(wake_url)
+    return bool(enabled) and bool(wake_url)
 
 
 def is_idle(
@@ -149,6 +152,111 @@ def is_idle(
     if has_live_background_work:
         return False
     return seconds_since_last_inbound >= idle_timeout_seconds
+
+
+# ── Dashboard activity stamp ──────────────────────────────────────────────────
+#
+# Web and TUI chat run in the dashboard process (and its PTY TUI children), not
+# in the gateway. The suspend freezes the whole machine, so the gateway must see
+# that activity: the dashboard side touches a file on user input and while an
+# agent turn runs, and the idle predicate treats the file's mtime as inbound. A
+# file, because the processes share only the volume. It lives at the Work4You
+# root, not the profile home: a profile-scoped chat runs with WORK4YOU_HOME at
+# its profile dir, but the suspend freezes every profile on the machine.
+#
+# An open client is NOT activity. The desktop app and dashboard keep their
+# sockets open and poll on timers; counting either would keep the VM up 24/7.
+
+ACTIVITY_STAMP_NAME = ".scale_to_zero_activity"
+
+# Well under the 5-minute default idle window, so a running turn never ages out.
+ACTIVITY_HEARTBEAT_SECONDS = 30.0
+
+# Keystrokes arrive many per second; one stamp per window is enough.
+ACTIVITY_MIN_INTERVAL_SECONDS = 5.0
+
+
+def activity_stamp_path() -> Path:
+    from work4you_constants import get_default_work4you_root
+
+    return get_default_work4you_root() / ACTIVITY_STAMP_NAME
+
+
+_last_noted: dict[Path, float] = {}
+
+
+def note_activity(path: Optional[Path] = None) -> None:
+    """Stamp activity the gateway cannot see. No-op unless the instance opted in."""
+    if not scale_to_zero_enabled():
+        return
+    target = path or activity_stamp_path()
+    now = time.monotonic()
+    if now - _last_noted.get(target, float("-inf")) < ACTIVITY_MIN_INTERVAL_SECONDS:
+        return
+    _last_noted[target] = now
+    try:
+        target.touch()
+    except OSError:
+        logger.debug("scale-to-zero: activity stamp write failed", exc_info=True)
+
+
+def seconds_since_activity(
+    now: Optional[float] = None, path: Optional[Path] = None
+) -> float:
+    """Seconds since the dashboard last stamped activity; inf when it never has."""
+    target = path or activity_stamp_path()
+    try:
+        mtime = target.stat().st_mtime
+    except OSError:
+        return float("inf")
+    current = time.time() if now is None else now
+    return max(0.0, current - mtime)
+
+
+_busy_probes: list[Callable[[], bool]] = []
+_activity_lock = threading.Lock()
+_heartbeat_thread: Optional[threading.Thread] = None
+
+
+def register_busy_probe(probe: Callable[[], bool]) -> None:
+    """Keep stamping activity while ``probe()`` is true (checked every heartbeat)."""
+    with _activity_lock:
+        _busy_probes.append(probe)
+    _ensure_activity_heartbeat()
+
+
+def dashboard_busy() -> bool:
+    with _activity_lock:
+        probes = list(_busy_probes)
+    for probe in probes:
+        try:
+            if probe():
+                return True
+        except Exception:  # noqa: BLE001 - a broken probe must not stop the heartbeat
+            logger.debug("scale-to-zero: busy probe failed", exc_info=True)
+    return False
+
+
+def _ensure_activity_heartbeat() -> None:
+    global _heartbeat_thread
+    if not scale_to_zero_enabled():
+        return
+    with _activity_lock:
+        if _heartbeat_thread is not None and _heartbeat_thread.is_alive():
+            return
+        _heartbeat_thread = threading.Thread(
+            target=_activity_heartbeat_loop,
+            name="scale-to-zero-activity",
+            daemon=True,
+        )
+        _heartbeat_thread.start()
+
+
+def _activity_heartbeat_loop() -> None:
+    while True:
+        time.sleep(ACTIVITY_HEARTBEAT_SECONDS)
+        if dashboard_busy():
+            note_activity()
 
 
 def self_suspend_available(environ: Optional[dict] = None) -> bool:
