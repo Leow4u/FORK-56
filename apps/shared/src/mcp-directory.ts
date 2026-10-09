@@ -55,7 +55,9 @@ export interface DirectoryApp {
   description: string
   section: string
   popular: boolean
-  source: 'native' | 'composio' | 'custom'
+  /** `gh_cli` is the desktop-only "GitHub CLI" row: the backend host's local
+   *  `gh` login, not an MCP server. The backend directory never emits it. */
+  source: 'native' | 'composio' | 'custom' | 'gh_cli'
   connected: boolean
   auth_type?: string
   needs_login?: boolean

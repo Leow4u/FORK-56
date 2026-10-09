@@ -599,7 +599,13 @@ def review_commit_context(cwd: str) -> dict:
 
 
 def _gh(cwd: str, args: list[str]) -> tuple[bool, str]:
-    if not shutil.which("gh"):
+    # PATH plus the well-known install dirs (Homebrew, WinGet, ...): a backend
+    # spawned by the desktop app often has a narrower PATH than the user's
+    # shell, and "gh missing" there used to read as "not logged in".
+    from work4you_cli.gh_auth import find_gh_binary
+
+    gh = find_gh_binary()
+    if not gh:
         return False, ""
     # Same non-interactive contract as _git: these serve REST requests, so gh
     # must fail fast instead of prompting (GH_PROMPT_DISABLED is gh's own
@@ -608,7 +614,7 @@ def _gh(cwd: str, args: list[str]) -> tuple[bool, str]:
     env["GH_PROMPT_DISABLED"] = "1"
     try:
         proc = subprocess.run(
-            ["gh", *args], cwd=cwd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=_GH_TIMEOUT,
+            [gh, *args], cwd=cwd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=_GH_TIMEOUT,
             stdin=subprocess.DEVNULL, env=env,
         )
     except (OSError, subprocess.SubprocessError):

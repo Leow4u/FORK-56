@@ -3126,6 +3126,9 @@ def _git_path(path: str) -> str:
 from work4you_cli.web_routers import git as _git_routes  # noqa: E402
 
 app.include_router(_git_routes.router)
+from work4you_cli.web_routers import gh_auth as _gh_auth_routes  # noqa: E402
+
+app.include_router(_gh_auth_routes.router)
 from work4you_cli.web_routers.git import (  # noqa: E402,F401 — legacy re-exports; tests call these via web_server.<name>
     git_status_route,
     git_worktrees_route,

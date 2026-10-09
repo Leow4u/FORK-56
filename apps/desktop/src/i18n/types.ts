@@ -991,8 +991,30 @@ export interface Translations {
       transportHttp: string
       transportStdio: string
       typeHostedApp: string
+      typeLocalCli: string
       authOauth: string
       disconnect: string
+      /** The "GitHub CLI" connector: the backend host's local `gh` login. */
+      ghCli: {
+        name: string
+        description: string
+        connectedAs: (login: string) => string
+        installHint: string
+        installLink: string
+        recheck: string
+        missing: string
+        dialogTitle: string
+        dialogBody: string
+        reopen: string
+        waiting: string
+        denied: string
+        expired: string
+        failed: string
+        connectedTitle: string
+        connectedBody: (login: string) => string
+        setupGitWarning: string
+        logoutFailed: string
+      }
       allServers: string
       authenticatedTitle: string
       authenticatedMessage: (server: string, count: number) => string

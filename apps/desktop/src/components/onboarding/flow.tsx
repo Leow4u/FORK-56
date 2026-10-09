@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { DeviceCode } from '@/components/device-code'
 import { ModelPickerDialog } from '@/components/model-picker'
 import { Button } from '@/components/ui/button'
 import { ErrorIcon } from '@/components/ui/error-state'
@@ -143,41 +144,8 @@ function Step({ children, title }: { children: React.ReactNode; title: string })
   )
 }
 
-// Device-code display: OTP-style — each character in its own readonly cell.
-// The whole row is the copy button (no side button, no checkmark); on copy the
-// cells flash emerald for feedback. Dashes render as quiet separators.
-function DeviceCode({ code, copied, onCopy }: { code: string; copied: boolean; onCopy: () => void }) {
-  const { t } = useI18n()
-
-  return (
-    <button
-      aria-label={t.onboarding.copy}
-      className="group flex w-full items-center justify-center gap-1.5"
-      onClick={onCopy}
-      type="button"
-    >
-      {[...code].map((ch, i) =>
-        ch === '-' || ch === ' ' ? (
-          <span className="w-1.5 text-center text-lg text-muted-foreground" key={i}>
-            –
-          </span>
-        ) : (
-          <span
-            className={cn(
-              'flex size-10 items-center justify-center rounded-md border font-mono text-xl font-semibold uppercase transition-colors',
-              copied
-                ? 'border-primary/50 text-primary'
-                : 'border-(--stroke-work4you) text-foreground group-hover:border-(--ui-stroke-secondary)'
-            )}
-            key={i}
-          >
-            {ch}
-          </span>
-        )
-      )}
-    </button>
-  )
-}
+// Device-code display lives in components/device-code.tsx (shared with the
+// GitHub CLI connector): OTP-style cells, the whole row is the copy button.
 
 function CodeBlock({ copied, onCopy, text }: { copied: boolean; onCopy: () => void; text: string }) {
   const { t } = useI18n()
