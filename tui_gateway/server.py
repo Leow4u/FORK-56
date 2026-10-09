@@ -4623,9 +4623,9 @@ def _load_provider_routing() -> dict:
 
 
 def _load_show_reasoning() -> bool:
-    # Fallback True — keep in sync with DEFAULT_CONFIG display.show_reasoning
+    # Fallback False — keep in sync with DEFAULT_CONFIG display.show_reasoning
     # (this loader reads the raw user YAML without the DEFAULT_CONFIG merge).
-    return bool((_load_cfg().get("display") or {}).get("show_reasoning", True))
+    return bool((_load_cfg().get("display") or {}).get("show_reasoning", False))
 
 
 def _load_memory_notifications() -> str:

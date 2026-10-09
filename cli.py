@@ -495,9 +495,9 @@ def load_cli_config() -> Dict[str, Any]:
             "resume_max_assistant_chars": 200,
             "resume_max_assistant_lines": 3,
             "resume_skip_tool_only": True,
-            # Live reasoning display default ON — keep in sync with
+            # Live reasoning display default OFF — keep in sync with
             # work4you_cli/config.py DEFAULT_CONFIG (display.show_reasoning).
-            "show_reasoning": True,
+            "show_reasoning": False,
             "reasoning_full": False,
             "streaming": True,
             "busy_input_mode": "interrupt",
@@ -4891,7 +4891,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
         # bell_on_complete: play terminal bell (\a) when agent finishes a response
         self.bell_on_complete = CLI_CONFIG["display"].get("bell_on_complete", False)
         # show_reasoning: display model thinking/reasoning before the response
-        self.show_reasoning = CLI_CONFIG["display"].get("show_reasoning", True)
+        self.show_reasoning = CLI_CONFIG["display"].get("show_reasoning", False)
         # reasoning_full: when reasoning display is on, print the post-response
         # recap box uncollapsed instead of clamping to the first 10 lines.
         self.reasoning_full = CLI_CONFIG["display"].get("reasoning_full", False)

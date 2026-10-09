@@ -1801,7 +1801,7 @@ display:
   cli_multiline_shortcuts: true  # CLI: Ctrl+J, \ + Enter, and supported Shift+Enter insert newlines (false = legacy c-j submit fallback)
   resume_display: full    # full (show previous messages on resume) | minimal (one-liner only)
   bell_on_complete: false # Play terminal bell when agent finishes (great for long tasks)
-  show_reasoning: true    # Show model reasoning/thinking above each response (default: true; toggle with /reasoning show|hide)
+  show_reasoning: false   # Show model reasoning/thinking above each response (default: false; toggle with /reasoning show|hide)
   streaming: false        # Stream tokens to terminal as they arrive (real-time output)
   show_cost: false        # Show estimated $ cost in the CLI status bar
   timestamps: false       # When true, prefixes user and assistant labels with timestamps in the CLI / TUI transcript
@@ -2100,7 +2100,7 @@ Stream tokens to the terminal or messaging platforms as they arrive, instead of 
 ```yaml
 display:
   streaming: true         # Stream tokens to terminal in real-time
-  show_reasoning: true    # Also stream reasoning/thinking tokens (optional)
+  show_reasoning: false   # Also stream reasoning/thinking tokens (optional; default: false)
 ```
 
 When enabled, responses appear token-by-token inside a streaming box. Tool calls are still captured silently. If the provider doesn't support streaming, it falls back to the normal display automatically.
