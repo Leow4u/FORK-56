@@ -221,6 +221,10 @@ wake = [
   # Upstream declares tflite-runtime for Linux only; ai-edge-litert is the
   # macOS equivalent, bridged in tools/wake_word.py.
   "ai-edge-litert==2.1.6; platform_system == 'Darwin'",
+  # LiteRT declares this backport even on Python 3.11+, where its code uses
+  # enum.StrEnum. 1.3.1 only supports Python <3.11; keep the compatible wheel
+  # so dependency checks remain valid. Mirror in lazy_deps.py.
+  "backports-strenum==1.2.8; platform_system == 'Darwin'",
 ]
 honcho = ["honcho-ai==2.2.0"]
 # Cloud memory providers — opt-in, lazy-installed via tools/lazy_deps.py
