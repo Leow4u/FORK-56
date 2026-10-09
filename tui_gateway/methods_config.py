@@ -243,9 +243,11 @@ def _(rid, params: dict) -> dict:
                 effort = "none"
             else:
                 effort = str(raw_effort or "medium")
+        # Fallback False — same default as DEFAULT_CONFIG display.show_reasoning
+        # and _load_show_reasoning (this read is the raw file, not the merge).
         display = (
             "show"
-            if bool((cfg.get("display") or {}).get("show_reasoning", True))
+            if bool((cfg.get("display") or {}).get("show_reasoning", False))
             else "hide"
         )
         return _ok(rid, {"value": effort, "display": display})

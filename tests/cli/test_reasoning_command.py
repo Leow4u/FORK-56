@@ -489,10 +489,33 @@ class TestConfigDefault(unittest.TestCase):
         from work4you_cli.config import DEFAULT_CONFIG
         display = DEFAULT_CONFIG.get("display", {})
         self.assertIn("show_reasoning", display)
-        # Default ON (July 2026 TTFT-perception change): thinking models
-        # stream reasoning for tens of seconds; hiding it left users staring
-        # at a spinner. The key must exist and be a bool.
-        self.assertTrue(display["show_reasoning"])
+        # Default OFF for every user who has not opted in. Settings → Chat
+        # shows the switch off until display.show_reasoning is set true.
+        self.assertIs(display["show_reasoning"], False)
+
+    def test_unset_show_reasoning_stays_off(self):
+        """A profile that never set the key still loads Show reasoning off.
+
+        Settings reads the merged config. The TUI/desktop runtime reads the
+        raw file and applies its own fallback. Both must agree.
+        """
+        from work4you_cli.config import load_config
+
+        merged = load_config()
+        self.assertIs(merged["display"]["show_reasoning"], False)
+
+        with patch("tui_gateway.server._load_cfg", return_value={}):
+            from tui_gateway.server import _load_show_reasoning
+
+            self.assertIs(_load_show_reasoning(), False)
+
+        with patch(
+            "tui_gateway.server._load_cfg",
+            return_value={"display": {"show_reasoning": True}},
+        ):
+            from tui_gateway.server import _load_show_reasoning
+
+            self.assertIs(_load_show_reasoning(), True)
 
 
 class TestCommandRegistered(unittest.TestCase):

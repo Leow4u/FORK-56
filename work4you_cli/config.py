@@ -4661,7 +4661,7 @@ def show_config():
     except Exception:
         _active_personality = display.get('personality') or 'none'
     print(f"  Personality:  {_active_personality}")
-    print(f"  Reasoning:    {'on' if display.get('show_reasoning', True) else 'off'}")
+    print(f"  Reasoning:    {'on' if display.get('show_reasoning', False) else 'off'}")
     print(f"  Bell:         {'on' if display.get('bell_on_complete', False) else 'off'}")
     ump = display.get('user_message_preview', {}) if isinstance(display.get('user_message_preview', {}), dict) else {}
     ump_first = ump.get('first_lines', 2)
