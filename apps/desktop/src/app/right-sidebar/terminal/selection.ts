@@ -133,5 +133,7 @@ export function terminalSelectionAnchor(host: HTMLDivElement): CSSProperties | n
   const left = Math.min(Math.max(rect.left - hostRect.left, 8), Math.max(8, host.clientWidth - buttonWidth - 8))
   const top = Math.min(Math.max(rect.bottom - hostRect.top + 4, 8), Math.max(8, host.clientHeight - 34))
 
-  return { left, top }
+  // The popup is an absolutely positioned sibling of the host. Clamp inside
+  // the host first, then translate into their positioned parent's coordinates.
+  return { left: host.offsetLeft + left, top: host.offsetTop + top }
 }
