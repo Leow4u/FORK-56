@@ -68,6 +68,7 @@ export function BotCharacterFace({ character, mood, name, size }: BotCharacterFa
         {
           '--bot-character-size': `${size}px`,
           display: 'block',
+          overflow: 'hidden',
           position: 'relative',
           flexShrink: 0,
           width: 'var(--bot-character-display-size, var(--bot-character-size))',

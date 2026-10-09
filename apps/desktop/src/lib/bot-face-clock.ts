@@ -88,8 +88,18 @@ export function paintMathFace(svg: SVGSVGElement, t: number): void {
     dot.setAttribute('opacity', String(o))
   })
 
-  svg.style.transform = `rotate(${pose.tilt}deg)`
-  svg.style.transformOrigin = '50% 70%'
+  const poseRoot = svg.querySelector<SVGGElement>('[data-hb-pose]')
+
+  svg.style.transform = ''
+  svg.style.transformOrigin = ''
+
+  if (poseRoot) {
+    poseRoot.style.transform = `rotate(${pose.tilt}deg)`
+    poseRoot.style.transformOrigin = '50% 70%'
+  } else {
+    svg.style.transform = `rotate(${pose.tilt}deg)`
+    svg.style.transformOrigin = '50% 70%'
+  }
 }
 
 type AnimatedFace = HTMLElement | SVGSVGElement

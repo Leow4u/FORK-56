@@ -194,7 +194,7 @@ export function BotFace({ color, image, mood = 'idle', name = 'agent', shape, si
         <span
           aria-hidden
           dangerouslySetInnerHTML={{ __html: markup }}
-          style={{ display: 'block', height: size, lineHeight: 0, width: size }}
+          style={{ display: 'block', height: size, lineHeight: 0, overflow: 'hidden', width: size }}
         />
       )
     }
@@ -240,7 +240,7 @@ export function BotFace({ color, image, mood = 'idle', name = 'agent', shape, si
       data-hb-mood={working ? 'work' : 'idle'}
       data-hb-shape={drawn || 'circle'}
       height={size}
-      style={{ display: 'block', overflow: 'visible' }}
+      style={{ display: 'block', overflow: 'hidden' }}
       viewBox="0 0 40 44"
       width={size}
     >
@@ -269,41 +269,43 @@ export function BotFace({ color, image, mood = 'idle', name = 'agent', shape, si
           <feGaussianBlur stdDeviation={0.7} />
         </filter>
       </defs>
-      <path d={bodyPath} data-hb-body="1" fill={color} />
-      <path d={bodyPath} data-hb-surface="1" fill={`url(#${surfaceId}-shade)`} />
-      <path d={bodyPath} data-hb-surface="1" fill={`url(#${surfaceId}-light)`} />
-      <g clipPath={`url(#${surfaceId}-body)`}>
-        <path
-          d={bodyPath}
-          data-hb-surface="1"
-          fill="none"
-          filter={`url(#${surfaceId}-soft-edge)`}
-          stroke={`url(#${surfaceId}-rim)`}
-          strokeWidth={3.5}
-        />
-      </g>
-      <g data-hb-open="1">
-        <ellipse cx={15.4} cy={eyeY0} data-hb-el="1" fill={eyeFill} rx={1.9} ry={working ? 3.3 : 3} />
-        <ellipse cx={24.6} cy={eyeY0} data-hb-er="1" fill={eyeFill} rx={1.9} ry={working ? 3.3 : 3} />
-        <circle cx={14.8} cy={eyeY0 - 0.7} data-hb-hl-l="1" fill={hlFill} r={0.65} />
-        <circle cx={24} cy={eyeY0 - 0.7} data-hb-hl-r="1" fill={hlFill} r={0.65} />
-      </g>
-      <path
-        d={`M12.8 ${eyeY0} L18 ${eyeY0} M22 ${eyeY0} L27.2 ${eyeY0}`}
-        data-hb-shut="1"
-        fill="none"
-        opacity={0}
-        stroke={eyeFill}
-        strokeLinecap="round"
-        strokeWidth={2}
-      />
-      {working ? (
-        <g>
-          <circle cx={16.4} cy={41.2} data-hb-dot="1" fill={color} opacity={rest.d0} r={1.15} />
-          <circle cx={20} cy={41.2} data-hb-dot="1" fill={color} opacity={rest.d1} r={1.15} />
-          <circle cx={23.6} cy={41.2} data-hb-dot="1" fill={color} opacity={rest.d2} r={1.15} />
+      <g data-hb-pose="1">
+        <path d={bodyPath} data-hb-body="1" fill={color} />
+        <path d={bodyPath} data-hb-surface="1" fill={`url(#${surfaceId}-shade)`} />
+        <path d={bodyPath} data-hb-surface="1" fill={`url(#${surfaceId}-light)`} />
+        <g clipPath={`url(#${surfaceId}-body)`}>
+          <path
+            d={bodyPath}
+            data-hb-surface="1"
+            fill="none"
+            filter={`url(#${surfaceId}-soft-edge)`}
+            stroke={`url(#${surfaceId}-rim)`}
+            strokeWidth={3.5}
+          />
         </g>
-      ) : null}
+        <g data-hb-open="1">
+          <ellipse cx={15.4} cy={eyeY0} data-hb-el="1" fill={eyeFill} rx={1.9} ry={working ? 3.3 : 3} />
+          <ellipse cx={24.6} cy={eyeY0} data-hb-er="1" fill={eyeFill} rx={1.9} ry={working ? 3.3 : 3} />
+          <circle cx={14.8} cy={eyeY0 - 0.7} data-hb-hl-l="1" fill={hlFill} r={0.65} />
+          <circle cx={24} cy={eyeY0 - 0.7} data-hb-hl-r="1" fill={hlFill} r={0.65} />
+        </g>
+        <path
+          d={`M12.8 ${eyeY0} L18 ${eyeY0} M22 ${eyeY0} L27.2 ${eyeY0}`}
+          data-hb-shut="1"
+          fill="none"
+          opacity={0}
+          stroke={eyeFill}
+          strokeLinecap="round"
+          strokeWidth={2}
+        />
+        {working ? (
+          <g>
+            <circle cx={16.4} cy={41.2} data-hb-dot="1" fill={color} opacity={rest.d0} r={1.15} />
+            <circle cx={20} cy={41.2} data-hb-dot="1" fill={color} opacity={rest.d1} r={1.15} />
+            <circle cx={23.6} cy={41.2} data-hb-dot="1" fill={color} opacity={rest.d2} r={1.15} />
+          </g>
+        ) : null}
+      </g>
     </svg>
   )
 }
