@@ -125,14 +125,63 @@ def verify_installed_payload(root: Path, inventory: list[dict], product_name: st
             actual[path.relative_to(root).as_posix()] = path
     missing = sorted(expected.keys() - actual.keys())
     unexpected = sorted(actual.keys() - expected.keys() - allowed_extras)
-    if missing or unexpected:
-        raise ValueError(f"Installed payload mismatch: missing={missing[:8]}, unexpected={unexpected[:8]}")
-    for name, item in expected.items():
-        if actual[name].stat().st_size != item["bytes"] or sha256_file(actual[name]) != item["sha256"]:
-            raise ValueError(f"Installed payload file changed: {name}")
-    return {"verified": True, "files": len(expected), "bytes": sum(item["bytes"] for item in inventory),
-            "fingerprintSha256": inventory_fingerprint(inventory),
-            "nsisAddedFiles": sorted(actual.keys() - expected.keys())}
+    # Missing files must not hide corruption of any remaining file. Hash every
+    # installed file, including unexpected additions, before reporting defects.
+    identities = {name: {"bytes": path.stat().st_size, "sha256": sha256_file(path)}
+                  for name, path in actual.items()}
+    changed = sorted(name for name in expected.keys() & actual.keys()
+                     if identities[name]["bytes"] != expected[name]["bytes"]
+                     or identities[name]["sha256"] != expected[name]["sha256"])
+    summary = {"files": len(expected), "bytes": sum(item["bytes"] for item in inventory),
+               "expectedFingerprintSha256": inventory_fingerprint(inventory),
+               "filesHashed": len(identities), "bytesHashed": sum(item["bytes"] for item in identities.values()),
+               "nsisAddedFiles": sorted(actual.keys() & allowed_extras)}
+    if missing or unexpected or changed:
+        raise PayloadIntegrityError(missing, unexpected, changed, summary)
+    return {**summary, "verified": True, "fingerprintSha256": inventory_fingerprint(inventory)}
+
+
+class PayloadIntegrityError(ValueError):
+    """Complete content mismatch, distinct from unsafe paths or failed I/O."""
+
+    def __init__(self, missing: list[str], unexpected: list[str], changed: list[str], summary: dict):
+        self.missing, self.unexpected, self.changed = missing, unexpected, changed
+        self.diagnostics = {**summary, "verified": False,
+                            "missing": missing, "unexpected": unexpected, "changed": changed}
+        super().__init__("Installed payload mismatch: " + json.dumps(self.diagnostics, ensure_ascii=False))
+
+
+def verify_pass_payload(entry: dict, pass_result: dict, root: Path, inventory: list[dict], product_name: str) -> dict:
+    """Keep a defective control measurable; a defective candidate still aborts."""
+    try:
+        integrity = verify_installed_payload(root, inventory, product_name)
+    except PayloadIntegrityError as error:
+        entry["passResults"].append({**pass_result, "functionalPassed": True, "success": False,
+                                     "payloadIntegrity": error.diagnostics})
+        if entry["variant"] != "7z":
+            raise
+        return error.diagnostics
+    entry["passResults"].append({**pass_result, "functionalPassed": True, "success": True,
+                                 "payloadIntegrity": integrity})
+    return integrity
+
+
+def comparison_outcome(report: dict) -> dict:
+    """Experiment completion never reclassifies a defective baseline as passed."""
+    variants = {entry["variant"]: entry for entry in report["variants"]}
+    baseline = variants.get("7z", {})
+    candidate = next((entry for name, entry in variants.items() if name != "7z"), {})
+    completed = (len(report["variants"]) == len(variants) == 2
+                 and set(variants) == set(report["order"])
+                 and all(entry.get("state") == "completed" and entry.get("cleanup", {}).get("success") is True
+                         for entry in variants.values()))
+    baseline_functional = baseline.get("functionalPassed") is True
+    candidate_passed = (candidate.get("success") is True and candidate.get("functionalPassed") is True
+                        and candidate.get("payloadVerified") is True)
+    return {"baselineFunctionalPassed": baseline_functional,
+            "baselinePayloadVerified": baseline.get("payloadVerified") is True,
+            "candidatePassed": candidate_passed, "comparisonCompleted": completed,
+            "success": completed and baseline_functional and candidate_passed and "error" not in report}
 
 
 def load_sibling(name: str):
@@ -268,7 +317,9 @@ def benchmark(manifest_path: Path, order: list[str], output: Path) -> dict:
     if sys.platform != "win32":
         raise RuntimeError("NSIS benchmark requires a native disposable Windows runner")
     progress = Progress(output)
-    report = {"schemaVersion": 1, "success": False, "order": order, "variants": [],
+    report = {"schemaVersion": 2, "success": False, "order": order, "variants": [],
+              "successCriterion": "Completed comparison, functional baseline and fully verified candidate; "
+                                  "baseline payload defects remain failures in the baseline entry",
               "machine": {"system": platform.platform(), "architecture": platform.machine(),
                           "processor": platform.processor(), "logicalCpus": os.cpu_count()},
               "limitations": ["Unsigned experimental installers, not production signing/SmartScreen validation",
@@ -277,6 +328,7 @@ def benchmark(manifest_path: Path, order: list[str], output: Path) -> dict:
                               "Full installed-payload hashing follows each launch, outside timings",
                               "Reinstall follows full-tree hashing and therefore a warmed cache, for both formats",
                               "No model calls; backend readiness is HTTP, WebSocket and persisted-session validation"]}
+    report.update(comparison_outcome(report))
     progress.save(report)
     try:
         manifest, inventory, paths = load_inputs(manifest_path.resolve())
@@ -311,21 +363,37 @@ def benchmark(manifest_path: Path, order: list[str], output: Path) -> dict:
                     entry["state"] = "verifying-payload"
                     progress.save(report)
                     with progress.running("installed-payload-hashing-" + pass_result["name"], name):
-                        verified = verify_installed_payload(executable.parent, inventory,
-                                                            manifest["product"]["productName"])
-                    entry["passResults"].append({**pass_result, "success": True, "payloadIntegrity": verified})
+                        try:
+                            verified = verify_pass_payload(entry, pass_result, executable.parent, inventory,
+                                                           manifest["product"]["productName"])
+                        finally:
+                            # Preserve complete candidate diagnostics even when
+                            # its integrity error aborts the smoke immediately.
+                            progress.save(report)
                     entry["state"] = "smoke"
                     progress.save(report)
-                    progress.emit("pass-verified", variant=name, passName=pass_result["name"],
-                                  timingsMs=pass_result["timingsMs"])
+                    progress.emit("pass-verified" if verified["verified"] else "baseline-payload-failed",
+                                  variant=name, passName=pass_result["name"], timingsMs=pass_result["timingsMs"],
+                                  payloadIntegrity=verified)
                     return verified
 
                 with progress.running("fresh-install-and-reinstall", name):
                     result = smoke.smoke(args, after_pass=after_pass)
                 entry["smoke"] = result
+                entry["functionalPassed"] = result.get("success") is True
+                entry["payloadVerified"] = (len(entry["passResults"]) == 2
+                                            and all(item["payloadIntegrity"]["verified"]
+                                                    for item in entry["passResults"]))
                 progress.save(report)
                 if not result.get("success"):
                     raise RuntimeError(result.get("error", "Packaged smoke failed"))
+                # The smoke's success describes its functional checks. Include
+                # the additional inventory requirement in this benchmark copy.
+                result["functionalPassed"] = True
+                result["success"] = entry["payloadVerified"]
+                for pass_result in result["passes"]:
+                    pass_result["functionalPassed"] = True
+                    pass_result["success"] = pass_result["payloadIntegrity"]["verified"]
             finally:
                 if result and result.get("sandbox"):
                     entry["state"] = "uninstalling"
@@ -333,13 +401,15 @@ def benchmark(manifest_path: Path, order: list[str], output: Path) -> dict:
                     with progress.running("sandbox-uninstall", name):
                         entry["cleanup"] = uninstall_sandbox(result, manifest["product"])
                     progress.save(report)
-            entry.update(success=True, state="completed")
+            entry.update(success=entry["functionalPassed"] and entry["payloadVerified"], state="completed")
+            report.update(comparison_outcome(report))
             progress.save(report)
-            progress.emit("variant-completed", variant=name)
-        report["success"] = True
+            progress.emit("variant-completed", variant=name, success=entry["success"],
+                          functionalPassed=entry["functionalPassed"], payloadVerified=entry["payloadVerified"])
     except Exception as error:
         report["error"] = str(error)
         progress.emit("failed", error=str(error))
+    report.update(comparison_outcome(report))
     progress.save(report)
     return report
 

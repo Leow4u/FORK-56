@@ -10,7 +10,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
-import { applyNsisDirectExtractionPatch, restoreNsisDirectExtractionPatch } from './patch-nsis-direct-extraction.mjs'
+import { applyNsisDirectExtractionPatch, restoreNsisDirectExtractionPatch, verifyNsisBaselineTemplate } from './patch-nsis-direct-extraction.mjs'
 import { compileHarness, holdFile, inspectFixture, observeInstaller, pause, pythonHelper, run } from './probe-nsis-unzip.mjs'
 
 const require = createRequire(import.meta.url)
@@ -80,13 +80,23 @@ export async function probeDirect({ out, python = 'python', timeoutMs = 15_000 }
     fs.realpathSync(path.dirname(output)))
   assert(!relative.startsWith('..') && !path.isAbsolute(relative), '--out must be a new temporary directory')
   fs.mkdirSync(output)
-  const report = { schemaVersion: 1, scope: 'guarded-7z-direct-benchmark-macro',
+  const report = { schemaVersion: 1, scope: 'production-afterPack-and-guarded-7z-direct-macro',
     limitations: ['Does not validate the full installer/updater or signed-release UX',
       'Does not exercise denied ACLs or paths exceeding MAX_PATH'],
-    cases: [], conclusive: false, candidatePassed: false }
+    productionHookPatchApplied: false, cases: [], conclusive: false, candidatePassed: false }
   let receipt
   try {
+    verifyNsisBaselineTemplate()
+    const { default: afterPack } = await import('../../apps/desktop/scripts/after-pack.mjs')
+    const { Target } = require('app-builder-lib/out/core.js')
+    const hookFixture = path.join(output, 'after-pack-fixture')
+    fs.mkdirSync(hookFixture)
+    console.log('Checking the real production afterPack hook; its cosmetic missing-exe stamp warning is expected for this empty fixture.')
+    await afterPack({ electronPlatformName: process.platform, appOutDir: hookFixture,
+      targets: [new Target('nsis')], packager: { appInfo: { productFilename: 'NativeHookFixture' } } })
     receipt = await applyNsisDirectExtractionPatch()
+    assert.equal(receipt.alreadyApplied, true, 'The production afterPack hook did not apply the required extraction patch')
+    report.productionHookPatchApplied = true
     report.patch = receipt
     const windows = require('app-builder-lib/out/toolsets/windows.js')
     const config = JSON.parse(fs.readFileSync(path.join(repo, 'apps/desktop/package.json'), 'utf8')).build

@@ -20,5 +20,6 @@ export function assessDirectResults(cases: DirectObservation[]): {
 }
 export function probeDirect(options: { out: string; python?: string; timeoutMs?: number }): Promise<{
   schemaVersion: number; cases: DirectObservation[]
+  productionHookPatchApplied: boolean
   conclusive: boolean; candidatePassed: boolean; harnessError?: string
 }>

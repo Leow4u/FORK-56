@@ -8,24 +8,35 @@
  * to the stock "Electron" icon/name (the bug when the stamp lived only in
  * install.ps1, which the update path doesn't use).
  *
- * Windows-only: rcedit edits PE resources, irrelevant on macOS/Linux where the
- * app identity comes from the bundle Info.plist / desktop entry. Best-effort:
- * a stamp failure must never fail an otherwise-good build (worst case is the
- * stock icon, not a broken app), so we log and resolve rather than throw.
+ * Windows-only: configure the verified extractor when building NSIS, then stamp
+ * the executable for every target. NSIS version/template/helper hash drift must
+ * stop the build, because the stock plugin can silently omit packaged files.
+ * Identity stamping remains best-effort; only its cosmetic failures are caught.
+ * macOS/Linux identity comes from the bundle Info.plist / desktop entry.
  *
  * electron-builder passes a context with:
  *   - electronPlatformName: 'win32' | 'darwin' | 'linux'
  *   - appOutDir:            the unpacked app directory for this target
+ *   - targets:              Target objects, each with a name such as 'nsis'
  *   - packager.appInfo.productFilename: the exe basename (e.g. 'Work4You')
  */
 
 import path from 'node:path'
+
+import { applyNsisDirectExtractionPatch } from '../../../scripts/ci/patch-nsis-direct-extraction.mjs'
 
 import { stampExeIdentity } from './set-exe-identity.mjs'
 
 export default async function afterPack(context) {
   if (context.electronPlatformName !== 'win32') {
     return
+  }
+
+  if (context.targets.some(target => target.name === 'nsis')) {
+    // afterPack runs before NSIS generates/signs the uninstaller and installer.
+    // Keep this outside the cosmetic catch: packaging must fail on extractor drift.
+    const extraction = await applyNsisDirectExtractionPatch()
+    console.log(`[after-pack] verified direct NSIS extraction: template=${extraction.patchedSha256} helper=${extraction.sevenZip.sha256}`)
   }
 
   const productName = context.packager?.appInfo?.productFilename || 'Work4You'

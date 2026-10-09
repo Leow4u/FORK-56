@@ -203,11 +203,17 @@ jobs:
         run: |
           python scripts/ci/sign_windows_esigner.py dist/Work4You-Setup.exe || exit /b 1
 
+      - name: Stage 7-Zip source and license for the signed release
+        if: ${{ steps.sign.outcome == 'success' }}
+        run: node scripts/ci/prepare-7zip-source.mjs dist
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_windows_signing == true && 'windows-installer-unsigned' || 'windows-installer' }}
           path: |
             dist/Work4You-Setup.exe
+            dist/7z2409-src.7z
+            dist/7zip-24.09-license.txt
           if-no-files-found: error
           retention-days: 7
 
@@ -394,7 +400,9 @@ jobs:
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --exe installers/windows-installer/Work4You-Setup.exe \
-            --dmg installers/macos-installer/Work4You.dmg
+            --dmg installers/macos-installer/Work4You.dmg \
+            --seven-zip-source installers/windows-installer/7z2409-src.7z \
+            --seven-zip-license installers/windows-installer/7zip-24.09-license.txt
 
       - name: Record the published release for install smoke
         env:

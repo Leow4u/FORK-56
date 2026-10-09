@@ -139,8 +139,9 @@ def test_payload_identity_detects_same_size_corruption(payload):
     root, inventory = payload
     target = root / inventory[0]["path"]
     target.write_bytes(b"!" * target.stat().st_size)
-    with pytest.raises(ValueError, match="file changed"):
+    with pytest.raises(benchmark.PayloadIntegrityError) as raised:
         benchmark.verify_installed_payload(root, inventory, "Work4You")
+    assert raised.value.changed == [inventory[0]["path"]]
 
 
 def test_payload_identity_detects_missing_capability(payload):
@@ -148,6 +149,101 @@ def test_payload_identity_detects_missing_capability(payload):
     (root / "resources/runtime/model.bin").unlink()
     with pytest.raises(ValueError, match="missing"):
         benchmark.verify_installed_payload(root, inventory, "Work4You")
+
+
+def test_integrity_error_lists_all_defects_and_hashes_remaining_files(payload):
+    root, _ = payload
+    for index in range(12):
+        (root / f"missing-{index:02}.bin").write_bytes(b"expected file")
+    inventory = inventory_for(root)
+    for path in root.glob("missing-*"):
+        path.unlink()
+    # Corruption still has to be found when other expected files are missing.
+    (root / "Work4You.exe").write_bytes(b"application changed")
+    model = root / "resources/runtime/model.bin"
+    model.write_bytes(b"!" * model.stat().st_size)
+    (root / "unexpected.bin").write_bytes(b"unexpected content")
+    (root / "uninstallerIcon.ico").write_bytes(b"generated icon")
+    with pytest.raises(benchmark.PayloadIntegrityError) as raised:
+        benchmark.verify_installed_payload(root, inventory, "Work4You")
+    error = raised.value
+    assert error.missing == [f"missing-{index:02}.bin" for index in range(12)]
+    assert error.unexpected == ["unexpected.bin"]
+    assert error.changed == ["Work4You.exe", "resources/runtime/model.bin"]
+    assert not error.diagnostics["verified"]
+    present = [path for path in root.rglob("*") if path.is_file()]
+    assert error.diagnostics["filesHashed"] == len(present)
+    assert error.diagnostics["bytesHashed"] == sum(path.stat().st_size for path in present)
+    assert error.diagnostics["expectedFingerprintSha256"] == benchmark.inventory_fingerprint(inventory)
+    assert "missing-11.bin" in str(error)
+
+
+def test_baseline_retains_integrity_failure_for_both_passes(payload):
+    root, inventory = payload
+    (root / "resources/runtime/model.bin").unlink()
+    entry = {"variant": "7z", "passResults": []}
+    for name in ("fresh-install", "same-release-reinstall"):
+        result = benchmark.verify_pass_payload(entry, {"name": name}, root, inventory, "Work4You")
+        assert result["verified"] is False
+        assert result["missing"] == ["resources/runtime/model.bin"]
+    assert len(entry["passResults"]) == 2
+    assert all(item["functionalPassed"] and not item["success"] for item in entry["passResults"])
+
+
+@pytest.mark.parametrize("candidate", ["zip", "7z-direct"])
+def test_candidate_integrity_failure_records_details_and_aborts(payload, candidate):
+    root, inventory = payload
+    (root / "resources/runtime/model.bin").unlink()
+    entry = {"variant": candidate, "passResults": []}
+    with pytest.raises(benchmark.PayloadIntegrityError):
+        benchmark.verify_pass_payload(entry, {"name": "fresh-install"}, root, inventory, "Work4You")
+    assert entry["passResults"][0]["success"] is False
+    assert entry["passResults"][0]["payloadIntegrity"]["missing"] == ["resources/runtime/model.bin"]
+
+
+@pytest.mark.parametrize("baseline_verified", [False, True])
+def test_completed_comparison_requires_good_candidate_without_hiding_bad_control(baseline_verified):
+    baseline = {"variant": "7z", "state": "completed", "cleanup": {"success": True},
+                "functionalPassed": True, "payloadVerified": baseline_verified, "success": baseline_verified}
+    candidate = {"variant": "7z-direct", "state": "completed", "cleanup": {"success": True},
+                 "functionalPassed": True, "payloadVerified": True, "success": True}
+    outcome = benchmark.comparison_outcome({"order": ["7z-direct", "7z"], "variants": [candidate, baseline]})
+    assert outcome == {"baselineFunctionalPassed": True, "baselinePayloadVerified": baseline_verified,
+                       "candidatePassed": True, "comparisonCompleted": True, "success": True}
+    assert baseline["success"] is baseline_verified
+
+    # Reporting I/O can fail after both native passes and cleanup completed.
+    # A completed experiment must never erase that hard failure on final save.
+    failed_report = {"order": ["7z-direct", "7z"], "variants": [candidate, baseline],
+                     "error": "Unable to persist final measurement"}
+    failed_outcome = benchmark.comparison_outcome(failed_report)
+    assert failed_outcome["comparisonCompleted"] is True
+    assert failed_outcome["success"] is False
+
+
+@pytest.mark.parametrize("failure", ["baseline-functional", "candidate-functional", "candidate-integrity",
+                                   "candidate-success", "cleanup", "incomplete", "duplicate"])
+def test_comparison_cannot_pass_other_failures(failure):
+    baseline = {"variant": "7z", "state": "completed", "cleanup": {"success": True},
+                "functionalPassed": True, "payloadVerified": False, "success": False}
+    candidate = {"variant": "7z-direct", "state": "completed", "cleanup": {"success": True},
+                 "functionalPassed": True, "payloadVerified": True, "success": True}
+    entries = [baseline, candidate]
+    if failure == "baseline-functional":
+        baseline["functionalPassed"] = False
+    elif failure == "candidate-functional":
+        candidate["functionalPassed"] = False
+    elif failure == "candidate-integrity":
+        candidate["payloadVerified"] = False
+    elif failure == "candidate-success":
+        candidate["success"] = False
+    elif failure == "cleanup":
+        candidate["cleanup"]["success"] = False
+    elif failure == "incomplete":
+        candidate["state"] = "verifying-payload"
+    elif failure == "duplicate":
+        entries.append(candidate)
+    assert not benchmark.comparison_outcome({"order": ["7z", "7z-direct"], "variants": entries})["success"]
 
 
 @pytest.mark.linux_only
@@ -158,6 +254,11 @@ def test_payload_identity_refuses_symlink_escape(payload, tmp_path):
     (root / "outside-link").symlink_to(outside)
     with pytest.raises(ValueError, match="filesystem link"):
         benchmark.verify_installed_payload(root, inventory, "Work4You")
+    entry = {"variant": "7z", "passResults": []}
+    with pytest.raises(ValueError, match="filesystem link") as raised:
+        benchmark.verify_pass_payload(entry, {"name": "fresh-install"}, root, inventory, "Work4You")
+    assert not isinstance(raised.value, benchmark.PayloadIntegrityError)
+    assert not entry["passResults"]
 
 
 def test_cleanup_only_accepts_generated_sandbox_layout(tmp_path):
