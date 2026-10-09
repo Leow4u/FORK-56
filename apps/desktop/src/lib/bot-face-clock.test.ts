@@ -300,7 +300,9 @@ describe('paintMathFace', () => {
 
     expect(Math.max(...dotOpacity(idle))).toBe(0)
     expect(Math.max(...dotOpacity(work))).toBeGreaterThan(0)
-    expect(work.querySelector<SVGElement>('[data-hb-pose]')?.style.transform || work.style.transform).toMatch(/^rotate\(/)
+    expect(work.querySelector<SVGGElement>('[data-hb-pose]')?.style.transform || work.style.transform).toMatch(
+      /^rotate\(/
+    )
   })
 
   it('blinks by swapping the open eyes for the shut line', () => {
