@@ -52,19 +52,25 @@ vi.mock('@/i18n', () => ({
   })
 }))
 
-const { $profileBackendStates, $activeGatewayProfile, $profileScope, selectProfile, setShowAllProfiles } = vi.hoisted(
-  () => {
-    const { atom: makeAtom } = require('nanostores') as typeof Nanostores
+const {
+  $profileBackendStates,
+  $activeGatewayProfile,
+  $gatewaySwapTarget,
+  $profileScope,
+  selectProfile,
+  setShowAllProfiles
+} = vi.hoisted(() => {
+  const { atom: makeAtom } = require('nanostores') as typeof Nanostores
 
-    return {
-      $profileBackendStates: makeAtom<Record<string, 'asleep' | 'running' | 'waking'>>({}),
-      $activeGatewayProfile: makeAtom<string>('default'),
-      $profileScope: makeAtom<string>('default'),
-      selectProfile: vi.fn(),
-      setShowAllProfiles: vi.fn()
-    }
+  return {
+    $profileBackendStates: makeAtom<Record<string, 'asleep' | 'running' | 'waking'>>({}),
+    $activeGatewayProfile: makeAtom<string>('default'),
+    $gatewaySwapTarget: makeAtom<string | null>(null),
+    $profileScope: makeAtom<string>('default'),
+    selectProfile: vi.fn(),
+    setShowAllProfiles: vi.fn()
   }
-)
+})
 
 vi.mock('@/store/profile', () => ({
   $profileBackendStates,
@@ -72,6 +78,7 @@ vi.mock('@/store/profile', () => ({
   $profileCreateRequest: atom(0),
   $profileOrder: atom([]),
   $activeGatewayProfile,
+  $gatewaySwapTarget,
   $profiles: atom([{ is_default: true, name: 'default' }]),
   $profileScope,
   ALL_PROFILES: '*',
@@ -140,6 +147,7 @@ afterEach(() => {
   profiles.set([{ is_default: true, name: 'default' }])
   $profileBackendStates.set({})
   $activeGatewayProfile.set('default')
+  $gatewaySwapTarget.set(null)
   $profileScope.set('default')
   window.localStorage.removeItem('work4you.desktop.profileRail')
 })
@@ -220,6 +228,41 @@ describe('ProfileRail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'research' }))
     expect(selectProfile).toHaveBeenCalledWith('research')
     expect(screen.queryByRole('dialog', { name: 'Agent panel' })).toBeNull()
+  })
+
+  it('highlights the chosen profile during a cold start before the gateway changes', () => {
+    profiles.set(TWO_PROFILES)
+    selectProfile.mockImplementationOnce(name => {
+      $gatewaySwapTarget.set(name)
+      $profileBackendStates.set({ default: 'running', research: 'waking' })
+    })
+    render(<ProfileRail />)
+    fireEvent.click(screen.getByRole('button', { name: 'research' }))
+    expect($activeGatewayProfile.get()).toBe('default')
+    expect(screen.getByRole('button', { name: 'research' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'research' }).getAttribute('aria-busy')).toBe('true')
+    expect(screen.getByRole('button', { name: 'default' }).getAttribute('aria-pressed')).toBe('false')
+    const panel = openPanel()
+    expect(panel.textContent).toContain('research')
+    expect(panel.textContent).toContain('Starting…')
+
+    act(() => {
+      $activeGatewayProfile.set('research')
+      $gatewaySwapTarget.set(null)
+      $profileBackendStates.set({ default: 'running', research: 'running' })
+    })
+    expect(screen.getByRole('button', { name: 'research' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'research' }).getAttribute('aria-busy')).not.toBe('true')
+    expect(panel.textContent).toContain('Ready')
+  })
+
+  it('restores the active selection when a pending switch ends without activation', () => {
+    profiles.set(TWO_PROFILES)
+    $gatewaySwapTarget.set('research')
+    render(<ProfileRail />)
+    expect(screen.getByRole('button', { name: 'research' }).getAttribute('aria-pressed')).toBe('true')
+    act(() => $gatewaySwapTarget.set(null))
+    expect(screen.getByRole('button', { name: 'default' }).getAttribute('aria-pressed')).toBe('true')
   })
 
   it('opens the selected agent in the existing manager without switching agents', () => {

@@ -45,6 +45,7 @@ import { useStoreSelector } from '@/lib/use-session-slice'
 import { cn } from '@/lib/utils'
 import {
   $activeGatewayProfile,
+  $gatewaySwapTarget,
   $profileBackendStates,
   $profileColors,
   $profileCreateRequest,
@@ -109,6 +110,7 @@ export function ProfileRail() {
   const profiles = useStore($profiles)
   const scope = useStore($profileScope)
   const gatewayProfile = useStore($activeGatewayProfile)
+  const swapTarget = useStore($gatewaySwapTarget)
   const order = useStore($profileOrder)
   const colors = useStore($profileColors)
   const states = useStore($profileBackendStates)
@@ -119,7 +121,9 @@ export function ProfileRail() {
   const [pendingDelete, setPendingDelete] = useState<null | ProfileInfo>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const isAll = scope === ALL_PROFILES
-  const activeKey = normalizeProfileKey(gatewayProfile)
+  // Reflect the user's selection while its backend starts, without publishing
+  // an active gateway identity before that connection is ready.
+  const activeKey = normalizeProfileKey(swapTarget ?? gatewayProfile)
   const defaultProfile = profiles.find(profile => profile.is_default)
   const activeProfile = profiles.find(profile => normalizeProfileKey(profile.name) === activeKey) ?? defaultProfile
 
@@ -454,6 +458,7 @@ function ProfileTileButton({
   return (
     <Tip label={tipsEnabled ? label : ''}>
       <Button
+        aria-busy={state === 'waking'}
         aria-label={label}
         aria-pressed={active}
         className="shrink-0 [&_svg:not([class*='size-'])]:size-7"
@@ -573,6 +578,7 @@ function ProfileSquare({
                     type="button"
                     {...attributes}
                     {...listeners}
+                    aria-busy={state === 'waking'}
                     aria-label={label}
                     aria-pressed={active}
                     // Hold-to-recolor rides alongside the dnd pointer listener (call
