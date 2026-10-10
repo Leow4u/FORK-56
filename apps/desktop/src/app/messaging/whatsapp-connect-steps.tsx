@@ -121,6 +121,7 @@ export function WhatsAppConnectSteps({
 
   function whatsappHomeCandidates(users: string): string[] {
     const linked = [setup?.account_id, setup?.account_phone].filter(Boolean) as string[]
+
     const listed = users
       .split(',')
       .map(part => part.trim())
@@ -161,6 +162,7 @@ export function WhatsAppConnectSteps({
     const keys = new Set(
       whatsappHomeCandidates(users).map(value => value.replace(/\D/g, '') || value.trim().toLowerCase())
     )
+
     const normalized = target.replace(/\D/g, '') || target.trim().toLowerCase()
 
     if (!keys.has(normalized)) {
@@ -361,6 +363,7 @@ export function WhatsAppConnectSteps({
         },
         scopeProfile
       )
+
       setPhase('applied')
       onApplied()
 

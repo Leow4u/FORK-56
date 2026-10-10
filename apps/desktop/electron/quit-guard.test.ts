@@ -68,6 +68,7 @@ test('updates require consent for active work before creating a handoff', async 
     await confirmActiveWorkBeforeUpdate(reports, async prompt => {
       prompts += 1
       assert.match(prompt.detail, /Write report/)
+
       return false
     }),
     false

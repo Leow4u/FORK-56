@@ -183,7 +183,7 @@ describe('preview store', () => {
     expect(agentPreviewTab()?.id).toBe('url:browser:2')
   })
 
-  it("leaves the agent the tab in front when no web tab is open", () => {
+  it('leaves the agent the tab in front when no web tab is open', () => {
     openPreview(fileTarget('/work/notes.html'), 'file-browser')
 
     expect(agentPreviewTab()?.target.path).toBe('/work/notes.html')
@@ -610,7 +610,7 @@ describe('conversation tabs', () => {
 
   // A web tab leads with the icon its page names, kept with its name. Main
   // fetches it, so only an http(s) icon is kept; a file has its file icon.
-  it('keeps the http(s) icon a web tab\'s page names, never a file\'s', () => {
+  it("keeps the http(s) icon a web tab's page names, never a file's", () => {
     $selectedStoredSessionId.set('a')
     openPreview(urlTarget('https://example.com'), 'tool-result')
     rememberPreviewIcon('url:browser', 'https://example.com/favicon.ico')
