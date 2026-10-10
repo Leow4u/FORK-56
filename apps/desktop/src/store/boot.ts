@@ -1,4 +1,4 @@
-import { atom } from 'nanostores'
+import { atom, computed } from 'nanostores'
 
 import type { DesktopBootProgress } from '@/global'
 import { translateNow } from '@/i18n'
@@ -19,6 +19,11 @@ const INITIAL_BOOT_STATE: DesktopBootState = {
 }
 
 export const $desktopBoot = atom<DesktopBootState>(INITIAL_BOOT_STATE)
+
+// One boolean for the surfaces that only care whether the boot is still
+// running (the empty-chat layout): subscribing to the full state would
+// re-render them on every progress tick.
+export const $desktopBootRunning = computed($desktopBoot, boot => boot.running)
 
 function clampProgress(value: number) {
   if (!Number.isFinite(value)) {

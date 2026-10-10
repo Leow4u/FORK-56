@@ -1784,6 +1784,15 @@ body.guest-pointer-lock :is(webview, iframe) {
   bottom: auto;
 }
 
+/* The lazy editor's stand-in (ChatBarFallback) keeps the same anchor, so a cold
+   start whose first frame is the fallback is already centered instead of being
+   born at the bottom and lifted when the editor module lands. Its height is the
+   measured-height default, so the same formula centers it exactly. */
+[data-chat-surface][data-composer-anchor='midline'] [data-slot='composer-root'][data-composer-fallback] {
+  top: calc(50% - var(--composer-measured-height) / 2);
+  bottom: auto;
+}
+
 [data-chat-surface][data-composer-anchor='midline'] [data-slot='aui_intro'] {
   position: absolute;
   inset-inline: 0;

@@ -3675,7 +3675,6 @@ export const en: Translations = {
   composer: {
     message: 'Message',
     wakingProfile: profile => `Waking up ${profile}…`,
-    placeholderStarting: 'Starting Work4You...',
     placeholderReconnecting: 'Reconnecting to Work4You…',
     placeholderFollowUp: 'Send follow-up',
     newSessionPlaceholders: [

@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requestMcpInstallFromDeepLink } from '@/store/mcp-deeplink-install'
+import { $navigationRestorePending, _resetNavigationRestoreForTests } from '@/store/navigation-restore'
 import { _resetLegacyDiscardForTests } from '@/store/session'
 import type * as WindowsStore from '@/store/windows'
 import type { SessionInfo } from '@/types/work4you'
@@ -39,6 +40,16 @@ const desktopWindow = window as unknown as { work4youDesktop?: Window['work4youD
 const initialWork4YouDesktop = desktopWindow.work4youDesktop
 
 const session = (over: Partial<SessionInfo> = {}): SessionInfo => makeSessionInfo({ id: 'live', ...over })
+
+interface RenderProps {
+  activeProfile: string
+  locationPathname: string
+  profileReady: boolean
+  resumeExhaustedSessionId: string | null
+  routedSessionId: string | null
+  sessions: readonly SessionInfo[]
+  sessionsLoading?: boolean
+}
 
 describe('useDesktopIntegrations', () => {
   let navigate: ReturnType<typeof vi.fn<(...args: unknown[]) => void>>
@@ -81,23 +92,18 @@ describe('useDesktopIntegrations', () => {
     profileReady = false,
     resumeExhaustedSessionId = null as string | null,
     routedSessionId = null as string | null,
-    sessions = [] as readonly SessionInfo[]
+    sessions = [] as readonly SessionInfo[],
+    sessionsLoading = false
   } = {}) {
-    return renderHook(
+    return renderHook<void, RenderProps>(
       ({
         activeProfile,
         locationPathname,
         profileReady,
         resumeExhaustedSessionId,
         routedSessionId,
-        sessions
-      }: {
-        activeProfile: string
-        locationPathname: string
-        profileReady: boolean
-        resumeExhaustedSessionId: string | null
-        routedSessionId: string | null
-        sessions: readonly SessionInfo[]
+        sessions,
+        sessionsLoading
       }) =>
         useDesktopIntegrations({
           activeProfile,
@@ -110,7 +116,8 @@ describe('useDesktopIntegrations', () => {
           resumeExhaustedSessionId,
           routedSessionId,
           runtimeIdByStoredSessionId: { current: new Map() },
-          sessions
+          sessions,
+          sessionsLoading
         }),
       {
         initialProps: {
@@ -119,7 +126,8 @@ describe('useDesktopIntegrations', () => {
           profileReady,
           resumeExhaustedSessionId,
           routedSessionId,
-          sessions
+          sessions,
+          sessionsLoading
         }
       }
     )
@@ -509,6 +517,72 @@ describe('useDesktopIntegrations', () => {
       deepLink?.({ kind: 'mcp', name: 'install', params: { name: 'context7' } })
       expect(requestMcpInstallFromDeepLink).toHaveBeenCalledWith({ name: 'context7' })
       expect(navigate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('empty-chat layout latch ($navigationRestorePending)', () => {
+    beforeEach(() => {
+      _resetNavigationRestoreForTests(true)
+    })
+
+    it('stays pending until profileReady', () => {
+      window.localStorage.setItem('work4you.desktop.lastSessionId.profile.default', 'remembered-session')
+
+      render({ profileReady: false, sessions: [session({ id: 'remembered-session', profile: 'default' })] })
+
+      expect($navigationRestorePending.get()).toBe(true)
+    })
+
+    it('settles when the restore navigates', () => {
+      window.localStorage.setItem('work4you.desktop.lastRoute.profile.default', '/remembered-session')
+
+      render({ profileReady: true, sessions: [session({ id: 'remembered-session', profile: 'default' })] })
+
+      expect(navigate).toHaveBeenCalledWith('/remembered-session', { replace: true })
+      expect($navigationRestorePending.get()).toBe(false)
+    })
+
+    it('settles when there is nothing valid to restore', () => {
+      render({ profileReady: true, sessions: [session({ id: 'live', profile: 'default' })] })
+
+      expect(navigate).not.toHaveBeenCalled()
+      expect($navigationRestorePending.get()).toBe(false)
+    })
+
+    it('holds while the list is still loading and releases once it loaded empty', () => {
+      window.localStorage.setItem('work4you.desktop.lastSessionId.profile.default', 'remembered-session')
+
+      const result = render({ profileReady: true, sessions: [], sessionsLoading: true })
+
+      expect($navigationRestorePending.get()).toBe(true)
+
+      result.rerender({
+        activeProfile: 'default',
+        locationPathname: '/',
+        profileReady: true,
+        resumeExhaustedSessionId: null,
+        routedSessionId: null,
+        sessions: [],
+        sessionsLoading: false
+      })
+
+      // Layout released; the restore itself keeps waiting for a list that
+      // names the session, so the remembered id is untouched.
+      expect($navigationRestorePending.get()).toBe(false)
+      expect(navigate).not.toHaveBeenCalled()
+      expect(window.localStorage.getItem('work4you.desktop.lastSessionId.profile.default')).toBe('remembered-session')
+    })
+
+    it('remembers the booted profile for the next launch', () => {
+      render({ activeProfile: 'coder', profileReady: true })
+
+      expect(window.localStorage.getItem('work4you.desktop.boot-profile')).toBe('coder')
+    })
+
+    it('does not remember a profile before profileReady', () => {
+      render({ activeProfile: 'coder', profileReady: false })
+
+      expect(window.localStorage.getItem('work4you.desktop.boot-profile')).toBeNull()
     })
   })
 })
