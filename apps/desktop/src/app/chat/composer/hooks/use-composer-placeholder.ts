@@ -15,8 +15,8 @@ interface UseComposerPlaceholderOptions {
  * The composer's placeholder text. A resting starter (new session) / continuation
  * (existing session) is picked once and only re-rolled when we genuinely move to
  * a *different* conversation — the null→id persist of a freshly-started session
- * keeps its starter so the text doesn't flip mid-stream. While the transport is
- * down, it swaps to a reconnecting / starting message instead.
+ * keeps its starter so the text doesn't flip mid-stream. While a healthy
+ * connection has dropped, it swaps to a reconnecting message instead.
  */
 export function useComposerPlaceholder({ disabled, reconnecting, sessionId }: UseComposerPlaceholderOptions): string {
   const { t } = useI18n()
@@ -48,14 +48,11 @@ export function useComposerPlaceholder({ disabled, reconnecting, sessionId }: Us
     setRestingPlaceholder(pickPlaceholder(sessionId ? followUpPlaceholders : newSessionPlaceholders))
   }, [followUpPlaceholders, newSessionPlaceholders, sessionId])
 
-  // When the transport is disabled it's because the gateway isn't open.
-  // Distinguish a cold start ("Starting Work4You...") from a dropped connection
-  // we're trying to restore. During reconnect, keep the textbox editable so a
-  // flaky network doesn't block drafting; only submit/backend actions stay
-  // disabled until the gateway is open again.
-  return disabled
-    ? reconnecting
-      ? t.composer.placeholderReconnecting
-      : t.composer.placeholderStarting
-    : restingPlaceholder
+  // The transport is disabled when the gateway isn't open. A connection that
+  // dropped after a healthy boot says so, and keeps the textbox editable so a
+  // flaky network doesn't block drafting (only submit/backend actions stay
+  // disabled until the gateway is open again). A cold start shows the resting
+  // placeholder from the first frame: the box is disabled and the send button
+  // inert until the gateway opens, so the text itself needs no "starting" state.
+  return disabled && reconnecting ? t.composer.placeholderReconnecting : restingPlaceholder
 }

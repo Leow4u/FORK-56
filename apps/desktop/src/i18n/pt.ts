@@ -4012,7 +4012,6 @@ export const pt = defineLocale({
   composer: {
     message: 'Mensagem',
     wakingProfile: profile => `Ativando ${profile}…`,
-    placeholderStarting: 'Iniciando o Work4You...',
     placeholderReconnecting: 'Reconectando ao Work4You…',
     placeholderFollowUp: 'Enviar outra mensagem',
     newSessionPlaceholders: [

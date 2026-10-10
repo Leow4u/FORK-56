@@ -39,8 +39,8 @@ export function GatewayConnectingOverlay() {
   // catching the overlay mid-fade.
   const [phase, setPhase] = useState<Phase>('live')
 
-  // Production cold boot paints the existing shell (intro, last chat, composer
-  // "Starting Work4You…") while serve comes up — same idea as the post-boot
+  // Production cold boot paints the existing shell (intro, last chat, the
+  // disabled composer) while serve comes up — same idea as the post-boot
   // reconnect path. The fullscreen BrandMark is DEV preview only (`?connecting=1`).
   // Hard failure stays on BootFailureOverlay; first-run stays on onboarding.
   const connecting = previewing

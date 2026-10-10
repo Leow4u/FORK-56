@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { SidebarFooter } from '@/components/ui/sidebar'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
@@ -44,7 +45,9 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 // One login: the menu reads the same Portal login the agent runs on (the
 // first-run "Work4You Portal" sign-in, done in the browser), so there is never
 // a second sign-in. The trigger shows the cadastro name when the Portal saved
-// one, otherwise the Portal email, otherwise a generic Account label. Clicking
+// one, otherwise the Portal email, otherwise a generic Account label — and a
+// placeholder, not that label, until the first identity read has answered
+// (the backend is still coming up for most of a cold start). Clicking
 // always opens the same menu (Settings, HUD mode, Docs, Shortcuts, Contact Us).
 // The running app version sits at the bottom of that menu, the way Cursor
 // shows it — not on a Settings page. Signed in adds Log Out, which removes that
@@ -92,6 +95,7 @@ export function AccountFooter() {
   const updateStatus = useStore($updateStatus)
   const menu = t.accountMenu
   const triggerLabel = account.label ?? menu.account
+  const accountPending = account.loggedIn === null
   const onboardingKey = `${onboarding.configured}:${onboarding.manual}:${onboarding.requested}`
   const applying = updateApply.applying || updateApply.stage === 'restart'
 
@@ -212,15 +216,31 @@ export function AccountFooter() {
       <div className="flex min-w-0 items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button aria-label={triggerLabel} className={rowClass} data-slot="account-footer-trigger" type="button">
-              <span
-                aria-hidden
-                className="grid size-5 shrink-0 place-items-center rounded-full bg-(--ui-accent) text-[0.625rem] font-medium uppercase leading-none text-(--dt-primary-foreground) max-md:size-8 max-md:text-xs"
-                data-slot="account-footer-mark"
-              >
-                {accountMark(triggerLabel, Boolean(account.label))}
-              </span>
-              <span className="truncate">{triggerLabel}</span>
+            <button
+              aria-busy={accountPending || undefined}
+              aria-label={triggerLabel}
+              className={rowClass}
+              data-slot="account-footer-trigger"
+              type="button"
+            >
+              {accountPending ? (
+                // Neither "Account" nor an initial: the identity is one read away.
+                <span aria-hidden className="flex items-center gap-2" data-slot="account-footer-placeholder">
+                  <Skeleton className="size-5 shrink-0 rounded-full max-md:size-8" />
+                  <Skeleton className="h-3 w-18 rounded-sm" />
+                </span>
+              ) : (
+                <>
+                  <span
+                    aria-hidden
+                    className="grid size-5 shrink-0 place-items-center rounded-full bg-(--ui-accent) text-[0.625rem] font-medium uppercase leading-none text-(--dt-primary-foreground) max-md:size-8 max-md:text-xs"
+                    data-slot="account-footer-mark"
+                  >
+                    {accountMark(triggerLabel, Boolean(account.label))}
+                  </span>
+                  <span className="truncate">{triggerLabel}</span>
+                </>
+              )}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent

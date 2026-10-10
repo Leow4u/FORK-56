@@ -2164,7 +2164,6 @@ export const ar = defineLocale({
   composer: {
     message: 'الرسالة',
     wakingProfile: profile => `جار إيقاظ ${profile}`,
-    placeholderStarting: 'جار بدء Work4You...',
     placeholderReconnecting: 'جار إعادة الاتصال...',
     placeholderFollowUp: 'اكتب متابعة...',
     newSessionPlaceholders: ['اسأل Work4You عن شيء...', 'اطلب من Work4You تنفيذ مهمة...', 'ابدأ محادثة جديدة...'],

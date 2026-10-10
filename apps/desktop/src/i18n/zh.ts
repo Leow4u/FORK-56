@@ -3796,7 +3796,6 @@ export const zh: Translations = {
   composer: {
     message: '消息',
     wakingProfile: profile => `正在唤醒 ${profile}…`,
-    placeholderStarting: '正在启动 Work4You…',
     placeholderReconnecting: '正在重新连接 Work4You…',
     placeholderFollowUp: '发送后续消息',
     newSessionPlaceholders: [

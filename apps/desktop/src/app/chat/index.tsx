@@ -22,10 +22,12 @@ import { quickModelOptions, sessionTitle } from '@/lib/chat-runtime'
 import { useIncrementalExternalStoreRuntime } from '@/lib/incremental-external-store-runtime'
 import { modelOptionsQueryKey, requestModelOptions } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
+import { $desktopBootRunning } from '@/store/boot'
 import { migrateSessionDraft } from '@/store/composer'
 import { migrateQueuedPrompts, parkQueuedPrompts } from '@/store/composer-queue'
 import { $introSplash } from '@/store/intro-splash'
 import { $pinnedSessionIds } from '@/store/layout'
+import { $navigationRestorePending } from '@/store/navigation-restore'
 import { $petActive } from '@/store/pet'
 import { $petOverlayActive } from '@/store/pet-overlay'
 import { $activeGatewayProfile, $gatewaySwapTarget, $profiles } from '@/store/profile'
@@ -389,6 +391,8 @@ const ChatViewContent = memo(function ChatViewContent({
   const petOverlayActive = useStore($petOverlayActive)
   const petPresent = petActive || petOverlayActive
   const freshDraftReady = useStore($freshDraftReady)
+  const bootInProgress = useStore($desktopBootRunning)
+  const navigationRestorePending = useStore($navigationRestorePending)
   const gatewayState = useStore($gatewayState)
   const gatewaySwapTarget = useStore($gatewaySwapTarget)
   const gatewayOpen = gatewayState === 'open'
@@ -460,14 +464,18 @@ const ChatViewContent = memo(function ChatViewContent({
 
   // The compact new-session pop-out skips the wordmark/tagline intro — it's a
   // scratch window, not the full-height empty state. The Appearance toggle
-  // turns it off everywhere else.
+  // turns it off everywhere else. During boot the intro (and the midline
+  // composer anchor it drives) is up from the first frame, unless a remembered
+  // chat is about to be restored — see intro-visibility.ts.
   const showIntro = shouldShowIntro({
     activeSessionId,
     auxiliaryWindow: isAuxiliaryWindow(),
+    bootInProgress,
     enabled: introSplash,
     freshDraftReady,
     messagesEmpty,
     primary: isPrimary,
+    restorePending: navigationRestorePending,
     routedSessionView: isRoutedSessionView,
     selectedSessionId
   })

@@ -14,6 +14,7 @@ import {
   invokePluginNotifyActivate,
   respondToApprovalAction
 } from '@/store/native-notifications'
+import { rememberBootProfile, settleNavigationRestore } from '@/store/navigation-restore'
 import { openPluginInstallRequest } from '@/store/plugin-install-request'
 import { openFolderAsProject } from '@/store/projects'
 import {
@@ -45,6 +46,8 @@ interface DesktopIntegrationsParams {
   routedSessionId: null | string
   runtimeIdByStoredSessionId: { readonly current: Map<string, string> }
   sessions: readonly RememberedSession[]
+  /** The sidebar list's first load is still in flight (see $sessionsLoading). */
+  sessionsLoading?: boolean
 }
 
 /**
@@ -63,7 +66,8 @@ export function useDesktopIntegrations({
   resumeExhaustedSessionId,
   routedSessionId,
   runtimeIdByStoredSessionId,
-  sessions
+  sessions,
+  sessionsLoading = false
 }: DesktopIntegrationsParams): void {
   // Update polling — populates $desktopVersion/$updateStatus, which feed the
   // statusbar version pill and the update toasts. Also honors the main
@@ -90,6 +94,9 @@ export function useDesktopIntegrations({
   }, [])
 
   const restoredRef = useRef(false)
+  // Written once per boot so the NEXT launch can read this profile's remembered
+  // navigation before the backend is up (see $navigationRestorePending).
+  const bootProfileRememberedRef = useRef(false)
 
   // Wait until boot has adopted the primary profile, then restore that profile's
   // navigation exactly once. The same effect owns subsequent writes so the
@@ -99,6 +106,11 @@ export function useDesktopIntegrations({
   useEffect(() => {
     if (!profileReady || isHudWindow()) {
       return
+    }
+
+    if (!bootProfileRememberedRef.current && !isSecondaryWindow()) {
+      bootProfileRememberedRef.current = true
+      rememberBootProfile(activeProfile)
     }
 
     if (!restoredRef.current) {
@@ -117,10 +129,18 @@ export function useDesktopIntegrations({
         // decided; treating an unloaded list as authoritative would erase valid
         // remembered navigation permanently.
         if (sessions.length === 0 && !restorableNonSessionRoute && (routeSession || last)) {
+          // Layout only: once the first list load finished empty, nothing is
+          // coming to dock the composer, so release the empty-chat layout even
+          // though this latch keeps waiting for a list that names the session.
+          if (!sessionsLoading) {
+            settleNavigationRestore()
+          }
+
           return
         }
 
         restoredRef.current = true
+        settleNavigationRestore()
 
         if (
           route &&
@@ -150,6 +170,7 @@ export function useDesktopIntegrations({
         }
       } else {
         restoredRef.current = true
+        settleNavigationRestore()
       }
     }
 
@@ -163,7 +184,7 @@ export function useDesktopIntegrations({
     } else if (!routedSessionId && !isOverlayView(appViewForPath(locationPathname))) {
       setRememberedRoute(locationPathname, activeProfile)
     }
-  }, [activeProfile, locationPathname, navigate, profileReady, routedSessionId, sessions])
+  }, [activeProfile, locationPathname, navigate, profileReady, routedSessionId, sessions, sessionsLoading])
 
   useEffect(() => {
     if (!profileReady || !resumeExhaustedSessionId) {

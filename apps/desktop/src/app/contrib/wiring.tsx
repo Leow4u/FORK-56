@@ -62,6 +62,7 @@ import {
   $selectedStoredSessionId,
   $sessionResumeRequest,
   $sessions,
+  $sessionsLoading,
   rememberedSessionProfile,
   sessionMatchesStoredId,
   sessionPinId,
@@ -225,6 +226,7 @@ export function ContribWiring({ children }: { children: ReactNode }) {
   const selectedStoredSessionId = useStore($selectedStoredSessionId)
   const messagingSessions = useStore($messagingSessions)
   const sessions = useStore($sessions)
+  const sessionsLoading = useStore($sessionsLoading)
   const activeConnectionId = useStore($activeConnectionId)
   const activeGatewayProfile = useStore($activeGatewayProfile)
   const profileScope = useStore($profileScope)
@@ -838,7 +840,8 @@ export function ContribWiring({ children }: { children: ReactNode }) {
     resumeExhaustedSessionId,
     routedSessionId,
     runtimeIdByStoredSessionId: runtimeIdByStoredSessionIdRef,
-    sessions
+    sessions,
+    sessionsLoading
   })
 
   // Pin/unpin the selected session (statusbar keybind + chat header) — pinned

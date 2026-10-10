@@ -131,6 +131,27 @@ function renderFooter() {
 }
 
 describe('AccountFooter', () => {
+  it('shows a placeholder, never "Account", until the first identity read answers', async () => {
+    let answer: (identity: PortalAccountIdentity) => void = () => {}
+    portal.read.mockReturnValue(new Promise<PortalAccountIdentity>(resolve => (answer = resolve)))
+
+    const { container } = renderFooter()
+
+    // The trigger is still a named, menu-opening button; only its face waits.
+    expect(container.querySelector('[data-slot="account-footer-placeholder"]')).not.toBeNull()
+    expect(container.querySelector('[data-slot="account-footer-mark"]')).toBeNull()
+    expect(screen.queryByText('Account')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Account' }).getAttribute('aria-busy')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeTruthy()
+
+    await act(async () => {
+      answer(signedIn({ email: 'ada@example.com', name: 'Ada Lovelace' }))
+    })
+
+    expect(container.querySelector('[data-slot="account-footer-placeholder"]')).toBeNull()
+    expect(await screen.findByRole('button', { name: 'Ada Lovelace' })).toBeTruthy()
+  })
+
   it('shows the cadastro name from the agent login with no app-window session', async () => {
     portal.read.mockResolvedValue(signedIn({ email: 'ada@example.com', name: 'Ada Lovelace' }))
     // No `cloud` bridge at all: the one first-run login is enough.
