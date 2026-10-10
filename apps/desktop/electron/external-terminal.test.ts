@@ -51,6 +51,7 @@ test('external app-owned CLI keeps bundled tools and clears inherited host Pytho
     PYTHONHOME: '',
     VIRTUAL_ENV: ''
   })
+
   const script = buildTerminalScript({
     command: '/Applications/Work4You/runtime/python/bin/python3',
     args: [],
@@ -58,6 +59,7 @@ test('external app-owned CLI keeps bundled tools and clears inherited host Pytho
     env,
     platform: 'darwin'
   })
+
   assert.match(script, /export PATH='\/Applications\/Work4You\/runtime\/bin:\/usr\/bin'/)
   assert.match(script, /unset PYTHONHOME/)
   assert.match(script, /unset VIRTUAL_ENV/)

@@ -62,6 +62,7 @@ describe('app-owned runtime', () => {
 
   test('resolves a relocated bundle from real files without copying it into the data HOME', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'work4you app runtime '))
+
     try {
       const bundleDir = path.join(root, 'resources', 'runtime')
       const code = path.join(bundleDir, 'work4you', 'work4you_cli')
@@ -71,6 +72,7 @@ describe('app-owned runtime', () => {
       fs.writeFileSync(python, 'fixture')
       fs.writeFileSync(path.join(code, 'main.py'), '')
       const manifest = { ...manifestFor('python/bin/python3'), commit: 'abc' }
+
       for (const filename of [
         'tui/entry.js',
         'web/index.html',
@@ -93,6 +95,7 @@ describe('app-owned runtime', () => {
         fs.mkdirSync(path.dirname(file), { recursive: true })
         fs.writeFileSync(file, 'fixture')
       }
+
       const runtime = resolveAppOwnedRuntime({
         bundleDir,
         manifest,
@@ -100,8 +103,10 @@ describe('app-owned runtime', () => {
         platform: 'darwin',
         fileExists: fs.existsSync
       })!
+
       assert.equal(runtime.pythonExecutable, python)
       const dataHome = path.join(root, 'custom-data')
+
       const backend = appOwnedRuntimeBackend({
         runtime,
         work4youHome: dataHome,
@@ -115,6 +120,7 @@ describe('app-owned runtime', () => {
           PYTHONHOME: '/unrelated/python'
         }
       })
+
       assert.equal(backend.bootstrap, false)
       assert.equal(backend.command, python)
       assert.deepEqual(backend.args, ['-m', 'work4you_cli.main', '--profile', 'ada', 'serve'])
@@ -163,6 +169,7 @@ describe('app-owned runtime', () => {
       platform: 'win32',
       fileExists: () => true
     })!
+
     const backend = appOwnedRuntimeBackend({
       runtime,
       work4youHome: 'D:\\Ada data\\work4you',
@@ -171,9 +178,11 @@ describe('app-owned runtime', () => {
       platform: 'win32',
       currentEnv: { Path: 'C:\\Windows' }
     })
+
     assert.equal(runtime.pythonExecutable, 'C:\\Program Files\\Work4You\\resources\\runtime\\python\\python.exe')
     assert.equal(backend.env.WORK4YOU_HOME, 'D:\\Ada data\\work4you')
     assert.ok(backend.env.Path.startsWith('C:\\Program Files\\Work4You\\resources\\runtime\\node;'))
+
     for (const pythonExecutable of ['../python.exe', 'C:\\elsewhere\\python.exe', '/tmp/python']) {
       assert.throws(
         () =>

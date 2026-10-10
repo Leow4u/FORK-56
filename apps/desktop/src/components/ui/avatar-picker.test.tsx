@@ -124,6 +124,7 @@ describe('AvatarPicker · Bot', () => {
     const onImage = vi.fn()
     const onColor = vi.fn()
     const character = BOT_CHARACTERS[0]
+
     const { rerender } = render(
       <Harness image="data:image/png;base64,old" onColor={onColor} onImage={onImage} onShape={onShape} />
     )

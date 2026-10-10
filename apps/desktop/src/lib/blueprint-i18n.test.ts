@@ -9,7 +9,7 @@ const morningBrief: AutomationBlueprint = {
   appUrl: '',
   category: 'daily',
   command: '',
-  description: 'A short daily briefing: today\'s calendar, weather, and anything urgent waiting on you.',
+  description: "A short daily briefing: today's calendar, weather, and anything urgent waiting on you.",
   fields: [
     {
       default: '08:00',

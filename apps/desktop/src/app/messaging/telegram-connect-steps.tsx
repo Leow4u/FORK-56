@@ -382,12 +382,7 @@ export function TelegramConnectSteps({
           throw new Error(q.sessionExpired)
         }
 
-        const result = await applyTelegramOnboarding(
-          setup.pairing_id,
-          allowed.ids,
-          scopeProfile,
-          homeChannel
-        )
+        const result = await applyTelegramOnboarding(setup.pairing_id, allowed.ids, scopeProfile, homeChannel)
 
         if (result.bot_username) {
           setBotUsername(result.bot_username)

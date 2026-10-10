@@ -59,6 +59,7 @@ export function terminalScriptEnv(
 
   for (const [key, value] of Object.entries(backendEnv)) {
     const clearHostPython = Boolean(backendEnv.WORK4YOU_BUNDLED_RUNTIME) && ['PYTHONHOME', 'VIRTUAL_ENV'].includes(key)
+
     if (
       (key.toUpperCase() === 'PATH' && !backendEnv.WORK4YOU_BUNDLED_RUNTIME) ||
       value === undefined ||

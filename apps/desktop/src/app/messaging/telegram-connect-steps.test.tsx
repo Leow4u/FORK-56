@@ -65,6 +65,7 @@ async function throughDeliver(manualId?: string) {
 
   await next()
 }
+
 /** A sentence as the screen shows it: its **marked** words lose the marks. */
 const shown = (text: string) => text.replace(/\*\*/g, '')
 const EXPIRES_AT = new Date(Date.now() + 5 * 60_000).toISOString()
@@ -174,9 +175,7 @@ describe('TelegramConnectSteps', () => {
     await next()
     await throughDeliver()
 
-    await waitFor(() =>
-      expect(applyTelegramOnboarding).toHaveBeenCalledWith('pair-1', ['4242'], 'work', home('4242'))
-    )
+    await waitFor(() => expect(applyTelegramOnboarding).toHaveBeenCalledWith('pair-1', ['4242'], 'work', home('4242')))
     expect(onApplied).toHaveBeenCalled()
     expect(await screen.findByText(s.readySetUp)).toBeTruthy()
     // The bot's handle is set in bold inside the line.

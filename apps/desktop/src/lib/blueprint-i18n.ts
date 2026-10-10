@@ -1,11 +1,7 @@
 import type { BlueprintCatalogTranslations } from '@/i18n/types'
 import type { AutomationBlueprint, AutomationBlueprintField } from '@/work4you'
 
-function fieldCopyFor(
-  blueprintKey: string,
-  fieldName: string,
-  catalog: BlueprintCatalogTranslations | undefined
-) {
+function fieldCopyFor(blueprintKey: string, fieldName: string, catalog: BlueprintCatalogTranslations | undefined) {
   const item = catalog?.items?.[blueprintKey]
 
   return item?.fields?.[fieldName] ?? catalog?.sharedFields?.[fieldName]
